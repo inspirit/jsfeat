@@ -9,12 +9,6 @@
     var math = (function() {
 
         return {
-            imin: function(value0, value1) {
-                return value1 ^ ((value0 ^ value1) & -(value0 < value1));
-            },
-            imax: function(value0, value1) {
-                return value0 ^ ((value0 ^ value1) & -(value0 < value1));
-            },
             imod3: function(a) {
                 a = ((a >> 16) + (a & 0xFFFF)); /* sum base 2**16 digits a <= 0x1FFFE */
                 a = ((a >>  8) + (a & 0xFF));   /* sum base 2**8 digits a <= 0x2FD */
