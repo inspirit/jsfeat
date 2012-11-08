@@ -10,9 +10,8 @@ The project aim is to explore JS/HTML5 possibilities using modern & state-of-art
 * Basic image processing methods (grayscale, derivatives, box-blur, resample, etc.)
 * Fast Corners feature detector (16/12/8 pattern size)
 * Lucas-Kanade optical flow
-* Fast math methods
 * Custom data structures
-* more is coming...
+* more coming...
 
 ### Change log ###
 
