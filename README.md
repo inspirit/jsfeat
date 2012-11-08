@@ -1,7 +1,7 @@
 jsfeat
 ======
 
-#### JavaScript Computer Vision library #### 
+### JavaScript Computer Vision library ###
 
 The project aim is to explore JS/HTML5 possibilities using modern & state-of-art computer vision algorithms.
 
