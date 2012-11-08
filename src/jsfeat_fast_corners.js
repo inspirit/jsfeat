@@ -42,8 +42,6 @@ The references are:
         _cmp_score_8 = function(src, off, pixel, d, threshold) {
             var N = 15, k = 0, v = src[off];
             var a0 = threshold,a=0,b0=0,b=0;
-            var _imin = jsfeat.math.imin;
-            var _imax = jsfeat.math.imax;
 
             for( ; k < N; ++k ) {
                 d[k] = v - src[off+pixel[k]];
@@ -51,27 +49,27 @@ The references are:
 
             for( k = 0; k < 8; k += 2 )
             {
-                a = _imin(d[k+1], d[k+2]);
+                a = Math.min(d[k+1], d[k+2]);
 
                 if( a <= a0 ) continue;
 
-                a = _imin(a, d[k+3]);
-                a = _imin(a, d[k+4]);
-                a0 = _imax(a0, _imin(a, d[k]));
-                a0 = _imax(a0, _imin(a, d[k+5]));
+                a = Math.min(a, d[k+3]);
+                a = Math.min(a, d[k+4]);
+                a0 = Math.max(a0, Math.min(a, d[k]));
+                a0 = Math.max(a0, Math.min(a, d[k+5]));
             }
 
             b0 = -a0;
             for( k = 0; k < 8; k += 2 )
             {
-                b = _imax(d[k+1], d[k+2]);
-                b = _imax(b, d[k+3]);
+                b = Math.max(d[k+1], d[k+2]);
+                b = Math.max(b, d[k+3]);
 
                 if( b >= b0 ) continue;
 
-                b = _imax(b, d[k+4]);
-                b0 = _imin(b0, _imax(b, d[k]));
-                b0 = _imin(b0, _imax(b, d[k+5]));
+                b = Math.max(b, d[k+4]);
+                b0 = Math.min(b0, Math.max(b, d[k]));
+                b0 = Math.min(b0, Math.max(b, d[k+5]));
             }
 
             return -b0-1;
@@ -80,8 +78,6 @@ The references are:
         _cmp_score_12 = function(src, off, pixel, d, threshold) {
             var N = 19, k = 0, v = src[off];
             var a0 = threshold,a=0,b0=0,b=0;
-            var _imin = jsfeat.math.imin;
-            var _imax = jsfeat.math.imax;
 
             for( ; k < N; ++k ) {
                 d[k] = v - src[off+pixel[k]];
@@ -89,31 +85,31 @@ The references are:
 
             for( k = 0; k < 12; k += 2 )
             {
-                a = _imin(d[k+1], d[k+2]);
+                a = Math.min(d[k+1], d[k+2]);
 
                 if( a <= a0 ) continue;
 
-                a = _imin(a, d[k+3]);
-                a = _imin(a, d[k+4]);
-                a = _imin(a, d[k+5]);
-                a = _imin(a, d[k+6]);
-                a0 = _imax(a0, _imin(a, d[k]));
-                a0 = _imax(a0, _imin(a, d[k+7]));
+                a = Math.min(a, d[k+3]);
+                a = Math.min(a, d[k+4]);
+                a = Math.min(a, d[k+5]);
+                a = Math.min(a, d[k+6]);
+                a0 = Math.max(a0, Math.min(a, d[k]));
+                a0 = Math.max(a0, Math.min(a, d[k+7]));
             }
 
             b0 = -a0;
             for( k = 0; k < 12; k += 2 )
             {
-                b = _imax(d[k+1], d[k+2]);
-                b = _imax(b, d[k+3]);
-                b = _imax(b, d[k+4]);
+                b = Math.max(d[k+1], d[k+2]);
+                b = Math.max(b, d[k+3]);
+                b = Math.max(b, d[k+4]);
 
                 if( b >= b0 ) continue;
 
-                b = _imax(b, d[k+5]);
-                b = _imax(b, d[k+6]);
-                b0 = _imin(b0, _imax(b, d[k]));
-                b0 = _imin(b0, _imax(b, d[k+7]));
+                b = Math.max(b, d[k+5]);
+                b = Math.max(b, d[k+6]);
+                b0 = Math.min(b0, Math.max(b, d[k]));
+                b0 = Math.min(b0, Math.max(b, d[k+7]));
             }
 
             return -b0-1;
@@ -122,8 +118,6 @@ The references are:
         _cmp_score_16 = function(src, off, pixel, d, threshold) {
             var N = 25, k = 0, v = src[off];
             var a0 = threshold,a=0,b0=0,b=0;
-            var _imin = jsfeat.math.imin;
-            var _imax = jsfeat.math.imax;
 
             for( ; k < N; ++k ) {
                 d[k] = v - src[off+pixel[k]];
@@ -131,34 +125,34 @@ The references are:
 
             for( k = 0; k < 16; k += 2 )
             {
-                a = _imin(d[k+1], d[k+2]);
-                a = _imin(a, d[k+3]);
+                a = Math.min(d[k+1], d[k+2]);
+                a = Math.min(a, d[k+3]);
 
                 if( a <= a0 ) continue;
 
-                a = _imin(a, d[k+4]);
-                a = _imin(a, d[k+5]);
-                a = _imin(a, d[k+6]);
-                a = _imin(a, d[k+7]);
-                a = _imin(a, d[k+8]);
-                a0 = _imax(a0, _imin(a, d[k]));
-                a0 = _imax(a0, _imin(a, d[k+9]));
+                a = Math.min(a, d[k+4]);
+                a = Math.min(a, d[k+5]);
+                a = Math.min(a, d[k+6]);
+                a = Math.min(a, d[k+7]);
+                a = Math.min(a, d[k+8]);
+                a0 = Math.max(a0, Math.min(a, d[k]));
+                a0 = Math.max(a0, Math.min(a, d[k+9]));
             }
 
             b0 = -a0;
             for( k = 0; k < 16; k += 2 )
             {
-                b = _imax(d[k+1], d[k+2]);
-                b = _imax(b, d[k+3]);
-                b = _imax(b, d[k+4]);
-                b = _imax(b, d[k+5]);
+                b = Math.max(d[k+1], d[k+2]);
+                b = Math.max(b, d[k+3]);
+                b = Math.max(b, d[k+4]);
+                b = Math.max(b, d[k+5]);
 
                 if( b >= b0 ) continue;
-                b = _imax(b, d[k+6]);
-                b = _imax(b, d[k+7]);
-                b = _imax(b, d[k+8]);
-                b0 = _imin(b0, _imax(b, d[k]));
-                b0 = _imin(b0, _imax(b, d[k+9]));
+                b = Math.max(b, d[k+6]);
+                b = Math.max(b, d[k+7]);
+                b = Math.max(b, d[k+8]);
+                b0 = Math.min(b0, Math.max(b, d[k]));
+                b0 = Math.min(b0, Math.max(b, d[k+9]));
             }
 
             return -b0-1;
@@ -169,7 +163,7 @@ The references are:
         return {
             set_threshold: function(threshold)
             {
-                _threshold = _imin(_imax(threshold, 0), 255);
+                _threshold = Math.min(Math.max(threshold, 0), 255);
                 for (var i = -255; i <= 255; ++i)
                 {
                     threshold_tab[(i + 255)] = (i < -_threshold ? 1 : (i > _threshold ? 2 : 0));
@@ -188,10 +182,10 @@ The references are:
                 var cpbuf = new Int32Array((w+1)*3);
                 var pixel = pixel_off;
                 var sd = score_diff;
-                var sy = _imax(3, border);
-                var ey = _imin((h-2), (h-border));
-                var sx = _imax(3, border);
-                var ex = _imin((w - 3), (w - border));
+                var sy = Math.max(3, border);
+                var ey = Math.min((h-2), (h-border));
+                var sx = Math.max(3, border);
+                var ex = Math.min((w - 3), (w - border));
                 var _count = 0, corners_cnt = 0;
                 var score_func = pattern_size == 16 ? _cmp_score_16 : (pattern_size == 12 ? _cmp_score_12 : _cmp_score_8);
                 var thresh_tab = threshold_tab;
