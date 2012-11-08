@@ -190,6 +190,7 @@ The references are:
                 var score_func = pattern_size == 16 ? _cmp_score_16 : (pattern_size == 12 ? _cmp_score_12 : _cmp_score_8);
                 var thresh_tab = threshold_tab;
                 var threshold = _threshold;
+                var mod3 = jsfeat.math.imod3;
 
                 var v=0,tab=0,d=0,ncorners=0,cornerpos=0,curr=0,ptr=0,prev=0,pprev=0;
                 var jp1=0,jm1=0,score=0;
@@ -220,7 +221,7 @@ The references are:
 
                 for(i = sy; i < ey; ++i) {
                     ptr = ((i * w) + sx)|0;
-                    m3 = _mod3(i - 3);
+                    m3 = mod3(i - 3);
                     curr = (m3*w)|0;
                     cornerpos = (m3*(w+1))|0;
                     for (j = 0; j < w; ++j) buf[curr+j] = 0;
@@ -301,10 +302,10 @@ The references are:
                         continue;
                     }
                     
-                    m3 = _mod3(i - 4 + 3);
+                    m3 = mod3(i - 4 + 3);
                     prev = (m3*w)|0;
                     cornerpos = (m3*(w+1))|0;
-                    m3 = _mod3(i - 5 + 3);
+                    m3 = mod3(i - 5 + 3);
                     pprev = (m3*w)|0;
 
                     ncorners = cpbuf[cornerpos+w];
