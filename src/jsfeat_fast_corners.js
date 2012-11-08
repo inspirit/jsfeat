@@ -29,12 +29,10 @@ The references are:
         var _cmp_offsets = function(pixel, step, pattern_size) {
             var k = 0;
             var offsets = pattern_size == 16 ? offsets16 : (pattern_size == 12 ? offsets12 : offsets8);
-            for( ; k < pattern_size; ++k )
-            {
+            for( ; k < pattern_size; ++k ) {
                 pixel[k] = offsets[k<<1] + offsets[(k<<1)+1] * step;
             }
-            for( ; k < 25; ++k )
-            {
+            for( ; k < 25; ++k ) {
                 pixel[k] = pixel[k - pattern_size];
             }
         },
@@ -47,8 +45,7 @@ The references are:
                 d[k] = v - src[off+pixel[k]];
             }
 
-            for( k = 0; k < 8; k += 2 )
-            {
+            for( k = 0; k < 8; k += 2 ) {
                 a = Math.min(d[k+1], d[k+2]);
 
                 if( a <= a0 ) continue;
@@ -60,8 +57,7 @@ The references are:
             }
 
             b0 = -a0;
-            for( k = 0; k < 8; k += 2 )
-            {
+            for( k = 0; k < 8; k += 2 ) {
                 b = Math.max(d[k+1], d[k+2]);
                 b = Math.max(b, d[k+3]);
 
@@ -83,8 +79,7 @@ The references are:
                 d[k] = v - src[off+pixel[k]];
             }
 
-            for( k = 0; k < 12; k += 2 )
-            {
+            for( k = 0; k < 12; k += 2 ) {
                 a = Math.min(d[k+1], d[k+2]);
 
                 if( a <= a0 ) continue;
@@ -98,8 +93,7 @@ The references are:
             }
 
             b0 = -a0;
-            for( k = 0; k < 12; k += 2 )
-            {
+            for( k = 0; k < 12; k += 2 ) {
                 b = Math.max(d[k+1], d[k+2]);
                 b = Math.max(b, d[k+3]);
                 b = Math.max(b, d[k+4]);
@@ -123,8 +117,7 @@ The references are:
                 d[k] = v - src[off+pixel[k]];
             }
 
-            for( k = 0; k < 16; k += 2 )
-            {
+            for( k = 0; k < 16; k += 2 ) {
                 a = Math.min(d[k+1], d[k+2]);
                 a = Math.min(a, d[k+3]);
 
@@ -140,8 +133,7 @@ The references are:
             }
 
             b0 = -a0;
-            for( k = 0; k < 16; k += 2 )
-            {
+            for( k = 0; k < 16; k += 2 ) {
                 b = Math.max(d[k+1], d[k+2]);
                 b = Math.max(b, d[k+3]);
                 b = Math.max(b, d[k+4]);
@@ -161,18 +153,15 @@ The references are:
         var _threshold = 20;
 
         return {
-            set_threshold: function(threshold)
-            {
+            set_threshold: function(threshold) {
                 _threshold = Math.min(Math.max(threshold, 0), 255);
-                for (var i = -255; i <= 255; ++i)
-                {
+                for (var i = -255; i <= 255; ++i) {
                     threshold_tab[(i + 255)] = (i < -_threshold ? 1 : (i > _threshold ? 2 : 0));
                 }
                 return _threshold;
             },
             
-            detect: function(img, w, h, corners, border, pattern_size)
-            {
+            detect: function(img, w, h, corners, border, pattern_size) {
                 if (typeof pattern_size === "undefined") { pattern_size = 16; }
                 if (typeof border === "undefined") { border = 3; }
 
@@ -190,7 +179,6 @@ The references are:
                 var score_func = pattern_size == 16 ? _cmp_score_16 : (pattern_size == 12 ? _cmp_score_12 : _cmp_score_8);
                 var thresh_tab = threshold_tab;
                 var threshold = _threshold;
-                var mod3 = jsfeat.math.imod3;
 
                 var v=0,tab=0,d=0,ncorners=0,cornerpos=0,curr=0,ptr=0,prev=0,pprev=0;
                 var jp1=0,jm1=0,score=0;
@@ -221,7 +209,7 @@ The references are:
 
                 for(i = sy; i < ey; ++i) {
                     ptr = ((i * w) + sx)|0;
-                    m3 = mod3(i - 3);
+                    m3 = (i - 3)%3;
                     curr = (m3*w)|0;
                     cornerpos = (m3*(w+1))|0;
                     for (j = 0; j < w; ++j) buf[curr+j] = 0;
@@ -302,10 +290,10 @@ The references are:
                         continue;
                     }
                     
-                    m3 = mod3(i - 4 + 3);
+                    m3 = (i - 4 + 3)%3;
                     prev = (m3*w)|0;
                     cornerpos = (m3*(w+1))|0;
-                    m3 = mod3(i - 5 + 3);
+                    m3 = (i - 5 + 3)%3;
                     pprev = (m3*w)|0;
 
                     ncorners = cpbuf[cornerpos+w];

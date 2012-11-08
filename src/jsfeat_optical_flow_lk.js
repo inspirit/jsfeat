@@ -38,8 +38,6 @@
                 var brd_tl=0,brd_r=0,brd_b=0;
                 var a=0.0,b=0.0,b1=0.0,b2=0.0;
 
-                var fabs = jsfeat.math.fabs;
-
                 // fixed point math
                 var W_BITS14 = 14;
                 var W_BITS4 = 14;
@@ -217,8 +215,8 @@
                                 break;
                             }
 
-                            if( iter > 0 && fabs(delta_x + prev_delta_x) < 0.01 &&
-                                            fabs(delta_y + prev_delta_y) < 0.01 ) {
+                            if( iter > 0 && Math.abs(delta_x + prev_delta_x) < 0.01 &&
+                                            Math.abs(delta_y + prev_delta_y) < 0.01 ) {
                                 curr_xy[i] -= delta_x*0.5;
                                 curr_xy[j] -= delta_y*0.5;
                                 break;
