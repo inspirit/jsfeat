@@ -6,6 +6,11 @@
     "use strict";
     //
 
+    var U8_t = 2,
+        U32_t = 4,
+        I32_t = 8,
+        F32_t = 16;
+
     var img_t = (function () {
         function img_t(w, h, elem_size) {
             this.width = w;
@@ -34,15 +39,22 @@
         }
 
         img_pyr_t.prototype.build = function(src) {
-            this.pyrdown(src, this.images[1]);
-            var i = 1;
+            var i = 2, a = src, b = this.images[1];
+            this.pyrdown(a.data_u8, a.width, a.height, b.data_u8);
             for(; i < this.levels; ++i) {
-                this.pyrdown(this.images[i-1], this.images[i]);
+                a = b;
+                b = this.images[i];
+                this.pyrdown(a.data_u8, a.width, a.height, b.data_u8);
             }
         }
 
         return img_pyr_t;
     })();
+
+    global.U8_t = U8_t;
+    global.U32_t = U32_t;
+    global.I32_t = I32_t;
+    global.F32_t = F32_t;
 
     global.img_t = img_t;
     global.img_pyr_t = img_pyr_t;
