@@ -38,7 +38,7 @@ The references are:
         },
 
         _cmp_score_8 = function(src, off, pixel, d, threshold) {
-            var N = 15, k = 0, v = src[off];
+            var N = 13, k = 0, v = src[off];
             var a0 = threshold,a=0,b0=0,b=0;
 
             for( ; k < N; ++k ) {
@@ -161,21 +161,28 @@ The references are:
                 return _threshold;
             },
             
-            detect: function(img, w, h, corners, border, pattern_size) {
-                if (typeof pattern_size === "undefined") { pattern_size = 16; }
+            detect: function(src, corners, border, pattern_size) {
+                if (typeof pattern_size === "undefined") { 
+                    pattern_size = 16; 
+                } else if(pattern_size != 16 && pattern_size!=12 && pattern_size!=8) {
+                    pattern_size = 16;
+                }
                 if (typeof border === "undefined") { border = 3; }
 
-                var K = (pattern_size/2)|0, N = (pattern_size + K + 1)|0;
+                var K = (pattern_size>>1), N = (pattern_size + K + 1)|0;
+                var img = src.data, w = src.cols, h = src.rows;
                 var i=0, j=0, k=0, vt=0, x=0, m3=0;
-                var buf = new Uint8Array(w*3);
-                var cpbuf = new Int32Array((w+1)*3);
+                var buf_node = jsfeat.cache.get_buffer(3 * w);
+                var cpbuf_node = jsfeat.cache.get_buffer(((w+1)*3)<<2);
+                var buf = buf_node.u8;//new Uint8Array(w*3);
+                var cpbuf = cpbuf_node.i32;//new Int32Array((w+1)*3);
                 var pixel = pixel_off;
                 var sd = score_diff;
                 var sy = Math.max(3, border);
                 var ey = Math.min((h-2), (h-border));
                 var sx = Math.max(3, border);
                 var ex = Math.min((w - 3), (w - border));
-                var _count = 0, corners_cnt = 0;
+                var _count = 0, corners_cnt = 0, pt;
                 var score_func = pattern_size == 16 ? _cmp_score_16 : (pattern_size == 12 ? _cmp_score_12 : _cmp_score_8);
                 var thresh_tab = threshold_tab;
                 var threshold = _threshold;
@@ -307,13 +314,14 @@ The references are:
                             score > buf[pprev+jm1] && score > buf[pprev+j] && score > buf[pprev+jp1] &&
                             score > buf[curr+jm1] && score > buf[curr+j] && score > buf[curr+jp1]) ) {
                             // save corner
-                            corners[corners_cnt*3] = j;
-                            corners[corners_cnt*3+1] = (i-1);
-                            corners[corners_cnt*3+2] = score;
+                            pt = corners[corners_cnt];
+                            pt.x = j, pt.y = (i-1), pt.score = score;
                             corners_cnt++;
                         }
                     }
                 } // y loop
+                jsfeat.cache.put_buffer(buf_node);
+                jsfeat.cache.put_buffer(cpbuf_node);
                 return corners_cnt;
             }
         };

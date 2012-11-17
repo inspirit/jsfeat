@@ -10,7 +10,7 @@
     var optical_flow_lk = (function() {
 
         // short link to shar deriv
-        var shar_deriv = jsfeat.imgproc.shar_derivatives;
+        var scharr_deriv = jsfeat.imgproc.scharr_derivatives;
 
         return {
             track: function(prev_pyr, curr_pyr, prev_xy, curr_xy, count, win_size, max_iter, status, eps, min_eigen_threshold) {
@@ -22,13 +22,17 @@
                 var half_win = (win_size-1)*0.5;
                 var win_area = (win_size*win_size)|0;
                 var win_area2 = win_area << 1;
-                var prev_imgs = prev_pyr.images, next_imgs = curr_pyr.images;
-                var img_prev=prev_imgs[0].data_u8,img_next=next_imgs[0].data_u8;
-                var w0 = prev_imgs[0].width, h0 = prev_imgs[0].height,lw=0,lh=0;
+                var prev_imgs = prev_pyr.data, next_imgs = curr_pyr.data;
+                var img_prev=prev_imgs[0].data,img_next=next_imgs[0].data;
+                var w0 = prev_imgs[0].cols, h0 = prev_imgs[0].rows,lw=0,lh=0;
 
-                var iwin_buf = new Int32Array(win_area);
-                var deriv_iwin = new Int32Array(win_area2);
-                var deriv_lev = new Int32Array((w0*h0)*2);
+                var iwin_node = jsfeat.cache.get_buffer(win_area<<2);
+                var deriv_iwin_node = jsfeat.cache.get_buffer(win_area2<<2);
+                var deriv_lev_node = jsfeat.cache.get_buffer((h0*(w0<<1))<<2);
+
+                var iwin_buf = iwin_node.i32;//new Int32Array(win_area);
+                var deriv_iwin = deriv_iwin_node.i32;//new Int32Array(win_area2);
+                var deriv_lev = deriv_lev_node.i32;//deriv_m.data;
 
                 var dstep=0,src=0,dsrc=0,iptr=0,diptr=0,jptr=0;
                 var lev_sc=0.0,prev_x=0.0,prev_y=0.0,next_x=0.0,next_y=0.0;
@@ -65,14 +69,14 @@
                     lw = w0 >> level;
                     lh = h0 >> level;
                     dstep = lw << 1;
-                    img_prev = prev_imgs[level].data_u8;
-                    img_next = next_imgs[level].data_u8;
+                    img_prev = prev_imgs[level].data;
+                    img_next = next_imgs[level].data;
                     
                     brd_r = (lw - win_size)|0;
                     brd_b = (lh - win_size)|0;
 
                     // calculate level derivatives
-                    shar_deriv(img_prev, deriv_lev, lw, lh);
+                    scharr_deriv(prev_imgs[level], deriv_lev);
 
                     // iterate through points
                     for(ptid = 0; ptid < count; ++ptid) {
@@ -227,6 +231,10 @@
                         }
                     } // points loop
                 } // levels loop
+
+                jsfeat.cache.put_buffer(iwin_node);
+                jsfeat.cache.put_buffer(deriv_iwin_node);
+                jsfeat.cache.put_buffer(deriv_lev_node);
             }
         };
     })();
