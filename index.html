@@ -1,56 +1,474 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>jsfeat by inspirit</title>
 
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-  </head>
-  <body>
-    <div class="wrapper">
-      <header>
-        <h1>jsfeat</h1>
-        <p>JavaScript Computer Vision library.</p>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="description" content="A JavaScript Computer Vision Library">
+        <meta name="author" content="Eugene Zatepyakin">
 
-        <p class="view"><a href="https://github.com/inspirit/jsfeat">View the Project on GitHub <small>inspirit/jsfeat</small></a></p>
+        
+        <title>JSFeat - JavaScript Computer Vision Library.</title>
+        
 
+        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="css/bootstrap.css">
+        <link rel="stylesheet" href="css/jsfeat.css">
+        <link rel="stylesheet" href="css/page.css">
+    </head>
 
-        <ul>
-          <li><a href="https://github.com/inspirit/jsfeat/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/inspirit/jsfeat/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/inspirit/jsfeat">View On <strong>GitHub</strong></a></li>
-        </ul>
-      </header>
-      <section>
-        <h1>jsfeat</h1>
+    <body data-spy="scroll" data-target=".bs-docs-sidebar">
+        <div class="container header">
+            <ul>
+                <li class="logo"><h2>jsfeat</h2></li>
+                <li><a href="https://github.com/inspirit/jsfeat">GitHub</a></li>
+                <li><a href="https://github.com/inspirit/jsfeat/zipball/master">Download</a></li>
+                <li><a href="https://github.com/inspirit/jsfeat/issues">Issues</a></li>
+            </ul>
+        </div>
+        <div class="container page">
+            <div class="row">
+                <div class="span3 bs-docs-sidebar">
+                    <ul class="nav nav-list bs-docs-sidenav">
+                        <li><a href="#structs"><i class="icon-chevron-right"></i> Data structures</a></li>
+                        <li><a href="#cachepool"><i class="icon-chevron-right"></i> Cache pool</a></li>
+                        <li><a href="#math"><i class="icon-chevron-right"></i> Math</a></li>
+                        <li><a href="#transform"><i class="icon-chevron-right"></i> Transform</a></li>
+                        <li><a href="#imgproc"><i class="icon-chevron-right"></i> Image processing</a></li>
+                        <li><a href="#fastcorners"><i class="icon-chevron-right"></i> Fast corners</a></li>
+                        <li><a href="#opticalflowlk"><i class="icon-chevron-right"></i> Lukas Kanade optical flow</a></li>
+                        <li><a href="#haar"><i class="icon-chevron-right"></i> Haar object detector</a></li>
+                        <li><a href="#bbf"><i class="icon-chevron-right"></i> BBF object detector</a></li>
+                    </ul>
+                </div>
+                <div class="span9">
+                    <section id="structs">
+                        <h2>Data structures</h2>
+                        <p>Most of <code>JSFEAT</code> methods relies on custom data structures. There are just few provided at the moment but I'm sure its number will increase with new functionality.</p>
+                        <h4>matrix_t</h4>
+                        <p>The core and starting structure for any project is most likely <code>matrix_t</code>:</p>
+                        <pre class="prettyprint linenums">var my_matrix = new jsfeat.matrix_t(columns, rows, data_type);</pre>
+                        <p><code>matrix_t</code> is quite flexible structure, it can be used as image representation or regular matrix for mathematics. <code>columns</code> and <code>rows</code> is the same as defining <code>width</code> and <code>height</code> for image. But let's look at <code>data_type</code> argument. It allows you to describe <code>matrix_t</code> underlaying data.</p>
+                        <p>To construct <code>data_type</code> you need to use library internal signatures. <span class="label label-important">NOTE:</span> at the moment most of methods support only single channel operations due to performance reasons.</p>
+<pre class="prettyprint linenums">
+// single channel unsigned char
+var data_type = jsfeat.U8_t | jsfeat.C1_t;
+// 2 channels 32 bit integer
+var data_type = jsfeat.S32_t | jsfeat.C2_t;
+// 3 channels 32 bit float
+var data_type = jsfeat.F32_t | jsfeat.C3_t;
+</pre>
+                        <p>Let's put all together:</p>
+<pre class="prettyprint linenums">
+var columns = 320, rows = 240, data_type = jsfeat.U8_t | jsfeat.C1_t;
+var my_matrix = new jsfeat.matrix_t(columns, rows, data_type);
+// we can access following properties:
+// my_matrix.cols, my_matrix.rows
+// my_matrix.data - underlaying  array for data holding
+// to check what type is used for data you can use bit mask:
+// if(my_matrix.type & jsfeat.U8_t) ...
+// my_matrix.channel = 1/2/3/4
+</pre>
+                        <p>You can change <code>matrix_t</code> <code>data_type</code> at any time using <code>set_data_type</code> method. <span class="label label-important">NOTE:</span> this operation will delete current data array.</p>
+<pre class="prettyprint linenums">
+my_matrix.set_data_type(jsfeat.F32_t | jsfeat.C3_t);
+</pre>
+                        <p>You also can access <code>matrix_t</code> <code>buffer</code> property that is a wrapper for <code>data</code> and implemented with <code>data_t</code> structure.</p>
+                        <h4>data_t</h4>
+                        <p>This is just a wrapper for JavaScript <code>ArrayBuffer</code>. But provides easier way to interpret underlaying data:</p>
+<pre class="prettyprint linenums">
+var my_data = new jsfeat.data_t(size_in_bytes);
 
-<h3>JavaScript Computer Vision library</h3>
+var my_data_buffer = my_data.buffer; // ArrayBuffer
+var u8_data = my_data.u8; // Uint8Array
+var i32_data = my_data.i32; // Int32Array
+var f32_data = my_data.f32; // Float32Array
+</pre>
+                        <h4>pyramid_t</h4>
+                        <p>A structure to wrap several <code>matrix_t</code> instances. Each <code>data</code> entry is 2x smaller then previous:</p>
+<pre class="prettyprint linenums">
+var levels = 3, start_width = 640, start_height = 480, 
+    data_type = jsfeat.U8_t | jsfeat.C1_t;
+var my_pyramid = new jsfeat.pyramid_t(levels);
 
-<p>The project aim is to explore JS/HTML5 possibilities using modern &amp; state-of-art computer vision algorithms.</p>
+// this will populate data property with matrix_t instances
+my_pyramid.allocate(start_width, start_height, data_type);
 
-<h3>Features</h3>
+var level_0 = my_pyramid.data[0]; // cols = 640, rows = 480
+var level_1 = my_pyramid.data[1]; // cols = 320, rows = 240
+var level_2 = my_pyramid.data[2]; // cols = 160, rows = 120
 
-<ul>
-<li>Basic image processing methods (grayscale, derivatives, box-blur, resample, etc.)</li>
-<li>Fast Corners feature detector (16/12/8 pattern size)</li>
-<li>Lucas-Kanade optical flow</li>
-<li>Fast math methods</li>
-<li>Custom data structures</li>
-<li>more is coming...</li>
-</ul>
-      </section>
-      <footer>
-        <p>This project is maintained by <a href="https://github.com/inspirit">inspirit</a></p>
-        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
-      </footer>
-    </div>
-    <script src="javascripts/scale.fix.js"></script>
-    
-  </body>
+// with build method you can draw input source to levels
+// skip_first_level is true by default
+my_pyramid.build(source_matrix_t, skip_first_level = true);
+</pre>
+                        <h4>point2d_t</h4>
+                        <p>2D point with coordinates, level and score properties:</p>
+<pre class="prettyprint linenums">
+// all arguments are zero by default
+var my_point = new jsfeat.point2d_t(x = 0, y = 0, score = 0, level = 0);
+</pre>
+                        <p>I guess we will need different data type points later with floating-point coordinates for example.</p>
+                    </section>
+                    <section id="cachepool">
+                        <h2>Cache pool</h2>
+                        <p><code>JSFEAT</code> has very simple and experimental linked pool based cache system. At the moment I'm not sure if it is really needed since most JavaScript engines have their own powerful caching. But running some tests I noticed that repeatedly calling methods that need temporary <code>Array</code>(s) allocation significantly increase its execution time. So replacing allocation with pooled buffers helps to improve performance in some cases. How it works:</p>
+<pre class="prettyprint linenums">
+var size_in_bytes = 640;
+var temp_buffer =  jsfeat.cache.get_buffer(size_in_bytes);
+var temp_u8 = temp_buffer.u8; // Uint8Array 640 entries
+
+// but you also can get other data types
+// Int32Array but length will be 640/4 = 160 entries
+var temp_i32 = temp_buffer.i32;
+</pre>
+                        <p><span class="label label-important">NOTE:</span> you always need to put buffer back to cache pool after you are done:</p>
+<pre class="prettyprint linenums">
+jsfeat.cache.put_buffer(temp_buffer);
+</pre>
+                        <p>At the moment the number of temporary buffers is fixed to 30 entries. I cant hardly imagine scenario where you may need more buffers. If the whole idea having <code>cache</code> pool will prove its usefulness we can extend it to different data types and add auto extending functionality.</p>
+                    </section>
+                    <section id="math">
+                        <h2>Math</h2>
+                        <p><code>JSFEAT</code> has it's own <code>jsfeat.math</code> module, it contains different math utilite methods that can be useful.</p>
+                        <h4>get_gaussian_kernel</h4>
+                        <p>Calculates gaussian kernel coefficients using specified options:</p>
+<pre class="prettyprint linenums">
+var kernel_size = 5, sigma = 0, kernel_array = [], data_type = jsfeat.F32_t;
+jsfeat.math.get_gaussian_kernel(kernel_size, sigma, kernel_array, data_type);
+
+// you can provide zero sigma to determinate it automatically from kernel_size
+// or set desired value
+</pre>
+                        <p><span class="label label-important">NOTE:</span> setting <code>data_type</code> to <code>jsfeat.U8_t</code> will result in integer based kernel that can be used to filter <code>unsigned char</code> image avoiding floating-point operations.</p>
+                        <h4>qsort</h4>
+                        <p>Generic sorting method that allows you to specify start and end sorting indices for the source array aswell as provide custom comparison method. Current implementation was derived from *BSD system <code>qsort()</code>.</p>
+<pre class="prettyprint linenums">
+// sort numeric array
+var arr = [10,2,1,0,0,4,6,1,3,8,5,3];
+var cmp_numeric = function(a, b) { return (a &lt; b); }
+jsfeat.math.qsort(arr, 0, arr.length-1, cmp_numeric);
+
+// sort array of points
+var point_arr = [ new jsfeat.point2d_t(1,10),
+                  new jsfeat.point2d_t(5,1),
+                  new jsfeat.point2d_t(33,10), 
+                  new jsfeat.point2d_t(0,0),
+                  new jsfeat.point2d_t(8,6),
+                  new jsfeat.point2d_t(3,0)];
+// define comparison method to sort points by ascending of y coordinates
+// and if y's are equal x's should ascend.
+var cmp_points = function(a, b) { return (a.y &lt; b.y) || (a.y &lt; b.y && a.x &lt; b.x); }
+jsfeat.math.qsort(point_arr, 0, point_arr.length-1, cmp_points);
+</pre>
+                        <h4>median</h4>
+                        <p>Calculate median value of provided <code>Array</code>, <span class="label label-important">NOTE:</span> input <code>Array</code> instance will be modified.</p>
+<pre class="prettyprint linenums">
+var arr = [10,2,1,0,0,4,6,1,3,8,5,3];
+var median = jsfeat.math.median(arr, 0, arr.length-1);
+</pre>
+                    </section>
+                    <section id="transform">
+                        <h2>Transform</h2>
+                        <p>The functions in this module estimate various geometrical transformations of 2D images.</p>
+                        <h4>affine_3point_transform</h4>
+                        <p>Calculates the affine transform from 3 pairs of the corresponding points. The function calculates the <code>2x3 Matrix</code></p>
+<pre class="prettyprint linenums">
+jsfeat.transform.affine_3point_transform(mat:Array, src_x0, src_y0, dst_x0, dst_y0,
+                                                    src_x1, src_y1, dst_x1, dst_y1,
+                                                    src_x2, src_y2, dst_x2, dst_y2);
+</pre>
+                        <h4>perspective_4point_transform</h4>
+                        <p>Calculates the perspective transform from 4 pairs of the corresponding points. The function calculates the <code>3x3 Matrix</code></p>
+<pre class="prettyprint linenums">
+jsfeat.transform.perspective_4point_transform(mat:Array, src_x0, src_y0, dst_x0, dst_y0,
+                                                        src_x1, src_y1, dst_x1, dst_y1,
+                                                        src_x2, src_y2, dst_x2, dst_y2,
+                                                        src_x3, src_y3, dst_x3, dst_y3);
+</pre>
+                        <h4>invert_affine_transform</h4>
+                        <p>Inverts an affine transformation. Can operate inplace.</p>
+<pre class="prettyprint linenums">
+jsfeat.transform.invert_affine_transform(src:Array, dst:Array);
+</pre>
+                        <h4>invert_perspective_transform</h4>
+                        <p>Inverts a perspective transformation. Can operate inplace.</p>
+<pre class="prettyprint linenums">
+jsfeat.transform.invert_perspective_transform(src:Array, dst:Array);
+</pre>
+                    </section>
+                    <section id="imgproc">
+                        <h2>Image processing</h2>
+                        <p><code>jsfeat.imgpoc</code> module is like library heart! It contatins all kinfs of methods to pre/post proccess and analyze image data.</p>
+                        <h4>grayscale</h4>
+                        <p>Convert RGBA array input <code>[r0,g0,b0,a0, ...]</code> to grayscale using <code>Y = 0.299*R + 0.587*G + 0.114*B</code> formula. This should be more generic so we can convert different kind of input like BGRA, RGB, BGR in the future.</p>
+                        <p><a href="sample_grayscale.html" target="_blank" role="button" class="btn btn-mini">GRAYSCALE DEMO</a></p>
+<pre class="prettyprint linenums">
+context2d.drawImage(video, 0, 0, width, height);
+var image_data = context2d.getImageData(0, 0, width, height);
+
+var gray_img = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);
+jsfeat.imgproc.grayscale(image_data.data, gray_img.data);
+</pre>
+                        <h4>resample</h4>
+                        <p>Generic resize method. Works with single and multi channel <code>matrix_t</code>. If performance is critical or you need multiple image resizings it is recommended to use <code>canvas</code> built-in <code>drawImage()</code> method.</p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.resample(source:matrix_t, dest:matrix_t, new_width, new_height);
+</pre>
+                        <h4>box_blur</h4>
+                        <p>Works with single channel data only. <span class="label label-important">NOTE:</span> if input is <code>jsfeat.U8_t</code> and <code>scale = 1</code> dest should be at least <code>jsfeat.S32_t</code> to handle accumulated values correctly.</p>
+                        <p><a href="sample_boxblur.html" target="_blank" role="button" class="btn btn-mini">BOX BLUR DEMO</a></p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.box_blur(source:matrix_t, dest:matrix_t, half_win_size, scale = 1);
+</pre>
+                        <h4>gaussian_blur</h4>
+                        <p>Works with single channel data only. You can choose between providing <code>kernel_size</code> or <code>sigma</code> argument or both.</p>
+                        <p><a href="sample_gaussblur.html" target="_blank" role="button" class="btn btn-mini">GAUSSIAN BLUR DEMO</a></p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.gaussian_blur(source:matrix_t, dest:matrix_t, kernel_size, sigma = 0);
+</pre>
+                        <h4>pyrdown</h4>
+                        <p>Downsample <code>source</code> to <code>dest</code> writing simple 4 pix average value. Works with single channel only.</p>
+                        <p><a href="sample_pyrdown.html" target="_blank" role="button" class="btn btn-mini">PYRDOWN DEMO</a></p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.pyrdown(source:matrix_t, dest:matrix_t);
+</pre>
+                        <h4>scharr_derivatives</h4>
+                        <p>Compute gradient using Scharr kernel <code>[3 10 3] * [-1 0 1]^T</code>. Works with single channel only.</p>
+<pre class="prettyprint linenums">
+// result is written as [gx0,gy0,gx1,gy1, ...] sequence
+jsfeat.imgproc.scharr_derivatives(source:matrix_t, dest:Array);
+</pre>
+                        <h4>sobel_derivatives</h4>
+                        <p>Compute gradient using Sobel kernel <code>[1 2 1] * [-1 0 1]^T</code>. Works with single channel only.</p>
+<pre class="prettyprint linenums">
+// result is written as [gx0,gy0,gx1,gy1, ...] sequence
+jsfeat.imgproc.sobel_derivatives(source:matrix_t, dest:Array);
+</pre>
+                        <h4>compute_integral_image</h4>
+                        <p>Calculates one or more integral images for the source image. Using these integral images, one may calculate sum, mean, standard deviation over arbitrary up-right or rotated rectangular region of the image in a constant time. <span class="label label-important">NOTE:</span> each destinatination should be 1 pixel larger than source <code>width = source.cols+1, height = source.rows+1</code>. Single channel source only.</p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.compute_integral_image(source:matrix_t, 
+                                      sum:Array, sqsum:Array, tilted:Array);
+</pre>
+                        <h4>equalize_histogram</h4>
+                        <p>Equalizes the histogram of a grayscale image. The algorithm normalizes the brightness and increases the contrast of the image.</p>
+                        <p><a href="sample_equalize_hist.html" target="_blank" role="button" class="btn btn-mini">EQUALIZE HISTOGRAM DEMO</a></p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.equalize_histogram(source:matrix_t, dest:matrix_t);
+</pre>
+                        <h4>canny</h4>
+                        <p>Canny edge detector. Result contains only <code>0x00</code> and <code>0xFF</code> values.</p>
+                        <p><a href="sample_canny_edge.html" target="_blank" role="button" class="btn btn-mini">CANNY EDGE DEMO</a></p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.canny(source:matrix_t, dest:matrix_t, low_threshold, high_threshold);
+</pre>
+                        <h4>warp_perspective</h4>
+                        <p>Applies a perspective transformation to an image using <code>3x3 Matrix</code>. Single channel source only.</p>
+                        <p>To avoid sampling artifacts, the mapping is done in the reverse order, from destination to the source. That is, for each pixel  of the destination image, the functions compute coordinates of the corresponding “donor” pixel in the source image and copy the pixel value.</p>
+                        <p><a href="sample_warp_perspective.html" target="_blank" role="button" class="btn btn-mini">WARP PERSPECTIVE DEMO</a></p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.warp_perspective(source:matrix_t, dest:matrix_t, 
+                                warp_mat:Array, fill_value = 0);
+</pre>
+                        <h4>warp_affine</h4>
+                        <p>Applies an affine transformation to an image using <code>2x3 Matrix</code>. Single channel source only.</p>
+                        <p>To avoid sampling artifacts, the mapping is done in the reverse order, from destination to the source. That is, for each pixel  of the destination image, the functions compute coordinates of the corresponding “donor” pixel in the source image and copy the pixel value.</p>
+                        <p><a href="sample_warp_affine.html" target="_blank" role="button" class="btn btn-mini">WARP AFFINE DEMO</a></p>
+<pre class="prettyprint linenums">
+jsfeat.imgproc.warp_affine(source:matrix_t, dest:matrix_t, 
+                           warp_mat:Array, fill_value = 0);
+</pre>
+                    </section>
+                    <section id="fastcorners">
+                        <h2>Fast corners</h2>
+                        <p>Detects corners using the <code>FAST</code> algorithm.</p>
+                        <p><a href="sample_fast_corners.html" target="_blank" role="button" class="btn btn-mini">FAST CORNERS DEMO</a></p>
+<pre class="prettyprint linenums">
+// threshold on difference between intensity of the central pixel 
+// and pixels of a circle around this pixel
+var threshold = 20;
+jsfeat.fast_corners.set_threshold(threshold);
+
+var corners = [], border = 3, pattern_size = 16;
+
+// you should use preallocated point2d_t array
+for(var i = 0; i &lt; img.cols*img.rows, ++i) {
+    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+}
+
+// perform detection
+// returns the amount of detected corners
+var count = jsfeat.fast_corners.detect(img:matrix_t, corners:Array, 
+                                       border = 3, pattern_size = 16);
+</pre>
+                    </section>
+                    <section id="opticalflowlk">
+                        <h2>Lukas Kanade optical flow</h2>
+                        <p>Calculates an optical flow for a sparse feature set using the iterative Lucas-Kanade method with pyramids.</p>
+                        <p><a href="sample_oflow_lk.html" target="_blank" role="button" class="btn btn-mini">OPTICAL FLOW LK DEMO</a></p>
+<pre class="prettyprint linenums">
+/*
+prev_pyr            - previous frame 8-bit pyramid_t
+curr_pyr            - current frame 8-bit pyramid_t
+prev_xy             - Array of 2D coordinates for which the flow needs to be found
+curr_xy             - Array of 2D coordinates containing the calculated new positions
+count               - number of input coordinates
+win_size            - size of the search window at each pyramid level
+max_iter            - stop searching after the specified maximum number of iterations
+status              - each element is set to 1 if the flow for the corresponding features
+                      has been found overwise 0
+eps                 - stop searching when the search window moves by less than eps
+min_eigen_threshold - the algorithm calculates the minimum eigen value of a 2x2 
+                      normal matrix of optical flow equations, divided by number of 
+                      pixels in a window; if this value is less than min_eigen_threshold, 
+                      then a corresponding feature is filtered out and its flow is not 
+                      processed, it allows to remove bad points and get a performance boost
+*/
+
+jsfeat.optical_flow_lk.track(prev_pyr:pyramid_t, curr_pyr:pyramid_t, 
+                             prev_xy:Array, curr_xy:Array, count, 
+                             win_size, max_iter = 30, status:Array = null, 
+                             eps = 0.01, min_eigen_threshold = 0.0001);
+</pre>
+                    </section> 
+                    <section id="haar">
+                        <h2>HAAR Cascades object detector</h2>
+                        <p>The object detector initially proposed by Paul Viola and improved by Rainer Lienhart.</p>
+                        <p><a href="sample_haar_face.html" target="_blank" role="button" class="btn btn-mini">HAAR FACE DETECT DEMO</a></p>
+<pre class="prettyprint linenums">
+/*
+Evaluates a Haar cascade classifier at a specified scale
+
+int_sum         - integral of the source image
+int_sqsum       - squared integral of the source image
+int_tilted      - tilted integral of the source image
+int_canny_sum   - integral of canny source image or undefined
+width           - width of the source image
+height          - height of the source image
+scale           - image scale
+classifier      - haar cascade classifier
+rects           - rectangles representing detected object
+*/
+var rects:Array = jsfeat.haar.detect_single_scale(int_sum:Array, 
+                                                  int_sqsum:Array, 
+                                                  int_tilted:Array, 
+                                                  int_canny_sum:Array, 
+                                                  width, height, scale, 
+                                                  classifier);
+</pre>
+<pre class="prettyprint linenums">
+/*
+Evaluates a Haar cascade classifier at all scales
+
+int_sum         - integral of the source image
+int_sqsum       - squared integral of the source image
+int_tilted      - tilted integral of the source image
+int_canny_sum   - integral of canny source image or undefined
+width           - width of the source image
+height          - height of the source image
+classifier      - haar cascade classifier
+scale_factor    - how much the image size is reduced at each image scale
+scale_min       - start scale
+rects           - rectangles representing detected object
+*/
+var rects:Array = jsfeat.haar.detect_multi_scale(int_sum:Array, 
+                                                 int_sqsum:Array, 
+                                                 int_tilted:Array, 
+                                                 int_canny_sum:Array, 
+                                                 width, height, 
+                                                 classifier, 
+                                                 scale_factor = 1.2, scale_min = 1);
+</pre>
+<pre class="prettyprint linenums">
+/*
+Groups the object candidate rectangles
+
+rects          - input candidate objects sequence
+min_neighbors  - Minimum possible number of rectangles minus 1,
+                 the threshold is used in a group of rectangles to retain it
+*/
+var rects:Array = jsfeat.haar.group_rectangles(rects:Array, min_neighbors = 1);
+</pre>
+                    </section>
+                    <section id="bbf">
+                        <h2>Brightness Binary Feature object detector</h2>
+                        <p>The original paper refers to: YEF∗ Real-Time Object Detection, Yotam Abramson and Bruno Steux.</p>
+                        <p><a href="sample_bbf_face.html" target="_blank" role="button" class="btn btn-mini">BBF FACE DETECT DEMO</a></p>
+<pre class="prettyprint linenums">
+/*
+This step needed only once to create
+local copy of features to prevent multiple
+Array relocation during detection
+*/
+jsfeat.bbf.prepare_cascade(cascade);
+
+/*
+Build image pyramid using canvas drawImage
+
+canvas            - source canvas
+min_width         - minimum width to scale pyramid to
+min_height        - minimum height to scale pyramid to
+interval          - number of original scale levels in pyramid
+do_grayscale      - specify if canvas data should be grayscaled
+                    if you already converted it to grayscale set false
+*/
+var img_pyramid:Array = jsfeat.bbf.build_pyramid(canvas, 
+                                                 min_width, min_height, 
+                                                 interval = 4, do_grayscale = true);
+
+/*
+Run detection
+
+img_pyramid    - image pyramid Array from build_pyramid method
+cascade        - cascade data
+*/
+var rects:Array = jsfeat.bbf.detect(img_pyramid:Array, cascade);
+
+/*
+Groups the object candidate rectangles
+
+rects          - input candidate objects sequence
+min_neighbors  - Minimum possible number of rectangles minus 1,
+                 the threshold is used in a group of rectangles to retain it
+*/
+var rects:Array = jsfeat.bbf.group_rectangles(rects:Array, min_neighbors = 1);
+</pre>
+                    </section>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <p><strong>JSFeat</strong> is a JavaScript Computer Vision Library.</p>
+            <p>Follow on
+                <a href="http://twitter.com/inspirit" target="_blank">Twitter</a> or
+                <a href="https://github.com/inspirit/jsfeat" target="_blank">GitHub</a>.
+                Maintained by <a href="http://inspirit.ru/" target="_blank">Eugene Zatepyakin</a>.
+            </p>
+        </div>
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script type="text/javascript" src="js/bootstrap.js"></script>
+        <script type="text/javascript" src="js/prettify.js"></script>
+        <script type="text/javascript">
+            !function ($) {
+
+              $(function(){
+
+                var $window = $(window)
+
+                // make code pretty
+                window.prettyPrint && prettyPrint()
+
+                // side bar
+                $('.bs-docs-sidenav').affix({
+                  offset: {
+                    top: function () { return $window.width() <= 980 ? 290 : 210 }
+                  , bottom: 270
+                  }
+                })
+
+              })
+            }(window.jQuery)
+        </script>
+    </body>
 </html>
