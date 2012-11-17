@@ -4,10 +4,14 @@
             <filelist id="filelist" dir="../src">
                 <file name="jsfeat.js"/>
                 <file name="jsfeat_struct.js" />
+                <file name="jsfeat_cache.js" />
                 <file name="jsfeat_math.js" />
+                <file name="jsfeat_transform.js" />
                 <file name="jsfeat_imgproc.js" />
                 <file name="jsfeat_fast_corners.js" />
                 <file name="jsfeat_optical_flow_lk.js" />
+                <file name="jsfeat_haar.js" />
+                <file name="jsfeat_bbf.js" />
             </filelist>
         </concat>
     </target>
