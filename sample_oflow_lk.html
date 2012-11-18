@@ -11,11 +11,23 @@
         <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
+
+        <script type="text/javascript">
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-36419199-1']);
+          _gaq.push(['_trackPageview']);
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+        </script>
     </head>
     <body>
             <video id="webcam" width="640" height="480" style="display:none;"></video>
             <div style=" width:640px;height:480px;margin: 10px auto;">
                 <canvas id="canvas" width="640" height="480"></canvas>
+                <div id="help" class="alert alert-info">Click the screen to add tracking points.</div>
                 <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
                 <div id="log" class="alert alert-info"></div>
             </div>
@@ -52,12 +64,14 @@
                 }, function (error) {
                     $('#canvas').hide();
                     $('#log').hide();
+                    $('#help').hide();
                     $('#no_rtc').html('<h4>WebRTC not available.</h4>');
                     $('#no_rtc').show();
                 });
             } catch (error) {
                 $('#canvas').hide();
                 $('#log').hide();
+                $('#help').hide();
                 $('#no_rtc').html('<h4>Something goes wrong...</h4>');
                 $('#no_rtc').show();
             }
