@@ -27,7 +27,6 @@
             <video id="webcam" width="640" height="480" style="display:none;"></video>
             <div style=" width:640px;height:480px;margin: 10px auto;">
                 <canvas id="canvas" width="640" height="480"></canvas>
-                <div id="help" class="alert alert-info">Click the screen to add tracking points.</div>
                 <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
                 <div id="log" class="alert alert-info"></div>
             </div>
@@ -64,14 +63,12 @@
                 }, function (error) {
                     $('#canvas').hide();
                     $('#log').hide();
-                    $('#help').hide();
                     $('#no_rtc').html('<h4>WebRTC not available.</h4>');
                     $('#no_rtc').show();
                 });
             } catch (error) {
                 $('#canvas').hide();
                 $('#log').hide();
-                $('#help').hide();
                 $('#no_rtc').html('<h4>Something goes wrong...</h4>');
                 $('#no_rtc').show();
             }
@@ -148,7 +145,7 @@
 
                     prune_oflow_points(ctx);
 
-                    $('#log').html(stat.log() + '<br/>points: ' + point_count);
+                    $('#log').html(stat.log() + '<br/>click to add tracking points: ' + point_count);
                 }
             }
 
