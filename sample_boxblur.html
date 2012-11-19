@@ -114,10 +114,9 @@
                     stat.stop("grayscale");
 
                     var r = options.radius;
-                    var win = (r+1) * 2;
 
                     stat.start("box blur");
-                    jsfeat.imgproc.box_blur(img_u8, img_u8, r, 1./(win*win));
+                    jsfeat.imgproc.box_blur_gray(img_u8, img_u8, r, 0);
                     stat.stop("box blur");
 
                     // render result back to canvas

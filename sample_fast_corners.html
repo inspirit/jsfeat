@@ -80,7 +80,6 @@
 
             var demo_opt = function(){
                 this.threshold = 20;
-                this.pattern_size = 16;
             }
 
             function demo_app() {
@@ -107,7 +106,6 @@
                 gui = new dat.GUI();
 
                 gui.add(options, 'threshold', 5, 100).step(1);
-                gui.add(options, 'pattern_size', 8, 16).step(4);
 
                 stat.add("grayscale");
                 stat.add("fast corners");
@@ -130,7 +128,7 @@
                     }
 
                     stat.start("fast corners");
-                    var count = jsfeat.fast_corners.detect(img_u8, corners, 5, options.pattern_size|0);
+                    var count = jsfeat.fast_corners.detect(img_u8, corners, 5);
                     stat.stop("fast corners");
 
                     // render result back to canvas
