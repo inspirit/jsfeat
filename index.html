@@ -228,8 +228,10 @@ jsfeat.imgproc.resample(source:matrix_t, dest:matrix_t, new_width, new_height);
                         <p>Works with single channel data only. <span class="label label-important">NOTE:</span> if input is <code>jsfeat.U8_t</code> and <code>options = jsfeat.BOX_BLUR_NOSCALE</code> dest should be at least <code>jsfeat.S32_t</code> to handle accumulated values correctly.</p>
                         <p><a href="sample_boxblur.html" target="_blank" role="button" class="btn btn-mini">BOX BLUR DEMO</a></p>
 <pre class="prettyprint linenums">
-// options   - you can pass jsfeat.BOX_BLUR_NOSCALE
-               to avoid result values scaling
+/*
+options   - you can pass jsfeat.BOX_BLUR_NOSCALE
+            to avoid result values scaling
+*/
 
 jsfeat.imgproc.box_blur_gray(source:matrix_t, dest:matrix_t, radius, options = 0);
 </pre>
