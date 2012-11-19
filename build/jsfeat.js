@@ -1995,7 +1995,7 @@ The references are:
                 var v=0,tab=0,d=0,ncorners=0,cornerpos=0,curr=0,ptr=0,prev=0,pprev=0;
                 var jp1=0,jm1=0,score=0;
 
-                _cmp_offsets(pixel, w, pattern_size);
+                _cmp_offsets(pixel, w, 16);
 
                 // local vars are faster?
                 var pixel0 = pixel[0];
