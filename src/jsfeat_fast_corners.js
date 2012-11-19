@@ -18,8 +18,10 @@ The references are:
     var fast_corners = (function() {
 
         var offsets16 = new Int32Array([0, 3, 1, 3, 2, 2, 3, 1, 3, 0, 3, -1, 2, -2, 1, -3, 0, -3, -1, -3, -2, -2, -3, -1, -3, 0, -3, 1, -2, 2, -1, 3]);
-        var offsets12 = new Int32Array([0, 2, 1, 2, 2, 1, 2, 0, 2, -1, 1, -2, 0, -2, -1, -2, -2, -1, -2, 0, -2, 1, -1, 2]);
-        var offsets8 = new Int32Array([0, 1, 1, 1, 1, 0, 1, -1, 0, -1, -1, -1, -1, 0, -1, 1]);
+
+        // decided to switch it off since other pattern sizes return quite poor points
+        //var offsets12 = new Int32Array([0, 2, 1, 2, 2, 1, 2, 0, 2, -1, 1, -2, 0, -2, -1, -2, -2, -1, -2, 0, -2, 1, -1, 2]);
+        //var offsets8 = new Int32Array([0, 1, 1, 1, 1, 0, 1, -1, 0, -1, -1, -1, -1, 0, -1, 1]);
 
         var threshold_tab = new Uint8Array(512);
         var pixel_off = new Int32Array(25);
@@ -28,7 +30,8 @@ The references are:
         // private functions
         var _cmp_offsets = function(pixel, step, pattern_size) {
             var k = 0;
-            var offsets = pattern_size == 16 ? offsets16 : (pattern_size == 12 ? offsets12 : offsets8);
+            //var offsets = pattern_size == 16 ? offsets16 : (pattern_size == 12 ? offsets12 : offsets8);
+            var offsets = offsets16;
             for( ; k < pattern_size; ++k ) {
                 pixel[k] = offsets[k<<1] + offsets[(k<<1)+1] * step;
             }
@@ -36,7 +39,7 @@ The references are:
                 pixel[k] = pixel[k - pattern_size];
             }
         },
-
+/*
         _cmp_score_8 = function(src, off, pixel, d, threshold) {
             var N = 13, k = 0, v = src[off];
             var a0 = threshold,a=0,b0=0,b=0;
@@ -108,7 +111,7 @@ The references are:
 
             return -b0-1;
         },
-
+*/
         _cmp_score_16 = function(src, off, pixel, d, threshold) {
             var N = 25, k = 0, v = src[off];
             var a0 = threshold,a=0,b0=0,b=0;
@@ -161,21 +164,23 @@ The references are:
                 return _threshold;
             },
             
-            detect: function(src, corners, border, pattern_size) {
+            detect: function(src, corners, border) {
+                /*
                 if (typeof pattern_size === "undefined") { 
                     pattern_size = 16; 
                 } else if(pattern_size != 16 && pattern_size!=12 && pattern_size!=8) {
                     pattern_size = 16;
                 }
+                */
                 if (typeof border === "undefined") { border = 3; }
 
-                var K = (pattern_size>>1), N = (pattern_size + K + 1)|0;
+                var K = 8, N = 25;
                 var img = src.data, w = src.cols, h = src.rows;
                 var i=0, j=0, k=0, vt=0, x=0, m3=0;
                 var buf_node = jsfeat.cache.get_buffer(3 * w);
                 var cpbuf_node = jsfeat.cache.get_buffer(((w+1)*3)<<2);
-                var buf = buf_node.u8;//new Uint8Array(w*3);
-                var cpbuf = cpbuf_node.i32;//new Int32Array((w+1)*3);
+                var buf = buf_node.u8;
+                var cpbuf = cpbuf_node.i32;
                 var pixel = pixel_off;
                 var sd = score_diff;
                 var sy = Math.max(3, border);
@@ -183,7 +188,8 @@ The references are:
                 var sx = Math.max(3, border);
                 var ex = Math.min((w - 3), (w - border));
                 var _count = 0, corners_cnt = 0, pt;
-                var score_func = pattern_size == 16 ? _cmp_score_16 : (pattern_size == 12 ? _cmp_score_12 : _cmp_score_8);
+                //var score_func = pattern_size == 16 ? _cmp_score_16 : (pattern_size == 12 ? _cmp_score_12 : _cmp_score_8);
+                var score_func = _cmp_score_16;
                 var thresh_tab = threshold_tab;
                 var threshold = _threshold;
 

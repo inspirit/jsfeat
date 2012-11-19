@@ -39,6 +39,9 @@
         }
     })();
 
+    // box blur option
+    var BOX_BLUR_NOSCALE = 0x01;
+
     var data_t = (function () {
         function data_t(size_in_bytes) {
             this.size = size_in_bytes|0;
@@ -138,6 +141,9 @@
     global.C2_t = C2_t;
     global.C3_t = C3_t;
     global.C4_t = C4_t;
+
+    // options
+    global.BOX_BLUR_NOSCALE = BOX_BLUR_NOSCALE;
 
     global.get_data_type = get_data_type;
     global.get_channel = get_channel;
