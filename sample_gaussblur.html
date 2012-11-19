@@ -114,8 +114,8 @@
                     jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
                     stat.stop("grayscale");
 
-                    var r = options.radius;
-                    var kernel_size = (r+1) * 2;
+                    var r = options.radius|0;
+                    var kernel_size = (r+1) << 1;
 
                     stat.start("gauss blur");
                     jsfeat.imgproc.gaussian_blur(img_u8, img_u8, kernel_size, options.sigma);

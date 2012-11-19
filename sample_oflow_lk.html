@@ -140,7 +140,7 @@
                     stat.stop("build image pyramid");
 
                     stat.start("optical flow lk");
-                    jsfeat.optical_flow_lk.track(prev_img_pyr, curr_img_pyr, prev_xy, curr_xy, point_count, options.win_size, options.max_iterations, point_status, options.epsilon, options.min_eigen);
+                    jsfeat.optical_flow_lk.track(prev_img_pyr, curr_img_pyr, prev_xy, curr_xy, point_count, options.win_size|0, options.max_iterations|0, point_status, options.epsilon, options.min_eigen);
                     stat.stop("optical flow lk");
 
                     prune_oflow_points(ctx);

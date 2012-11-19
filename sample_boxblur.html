@@ -113,7 +113,7 @@
                     jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
                     stat.stop("grayscale");
 
-                    var r = options.radius;
+                    var r = options.radius|0;
 
                     stat.start("box blur");
                     jsfeat.imgproc.box_blur_gray(img_u8, img_u8, r, 0);

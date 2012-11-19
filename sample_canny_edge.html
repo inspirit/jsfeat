@@ -117,15 +117,15 @@
                     jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
                     stat.stop("grayscale");
 
-                    var r = options.blur_radius;
-                    var kernel_size = (r+1) * 2;
+                    var r = options.blur_radius|0;
+                    var kernel_size = (r+1) << 1;
 
                     stat.start("gauss blur");
                     jsfeat.imgproc.gaussian_blur(img_u8, img_u8, kernel_size, 0);
                     stat.stop("gauss blur");
 
                     stat.start("canny edge");
-                    jsfeat.imgproc.canny(img_u8, img_u8, options.low_threshold, options.high_threshold);
+                    jsfeat.imgproc.canny(img_u8, img_u8, options.low_threshold|0, options.high_threshold|0);
                     stat.stop("canny edge");
 
                     // render result back to canvas
