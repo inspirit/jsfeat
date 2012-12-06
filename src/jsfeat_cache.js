@@ -15,11 +15,23 @@
         var _pool_node_t = (function () {
             function _pool_node_t(size_in_bytes) {
                 this.next = null;
-                this.size = size_in_bytes|0;
-                this.buffer = new ArrayBuffer(size_in_bytes);
-                this.u8 = new Uint8Array(this.buffer);
-                this.i32 = new Int32Array(this.buffer);
-                this.f32 = new Float32Array(this.buffer);
+                this.data = new jsfeat.data_t(size_in_bytes);
+                this.size = this.data.size;
+                this.buffer = this.data.buffer;
+                this.u8 = this.data.u8;
+                this.i32 = this.data.i32;
+                this.f32 = this.data.f32;
+                this.f64 = this.data.f64;
+            }
+            _pool_node_t.prototype.resize = function(size_in_bytes) {
+                delete this.data;
+                this.data = new jsfeat.data_t(size_in_bytes);
+                this.size = this.data.size;
+                this.buffer = this.data.buffer;
+                this.u8 = this.data.u8;
+                this.i32 = this.data.i32;
+                this.f32 = this.data.f32;
+                this.f64 = this.data.f64;
             }
             return _pool_node_t;
         })();
@@ -46,11 +58,7 @@
                 _pool_size--;
 
                 if(size_in_bytes > node.size) {
-                    node.buffer = new ArrayBuffer(size_in_bytes);
-                    node.u8 = new Uint8Array(node.buffer);
-                    node.i32 = new Int32Array(node.buffer);
-                    node.f32 = new Float32Array(node.buffer);
-                    node.size = size_in_bytes;
+                    node.resize(size_in_bytes);
                 }
 
                 return node;

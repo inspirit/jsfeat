@@ -6,6 +6,10 @@
     "use strict";
     //
 
+    // CONSTANTS
+    var EPSILON = 0.0000001192092896;
+    var FLT_MIN = 1E-37;
+
     // implementation from CCV project
     // currently working only with u8,s32,f32
     var U8_t = 0x0100,
@@ -41,28 +45,42 @@
 
     // box blur option
     var BOX_BLUR_NOSCALE = 0x01;
+    // svd options
+    var SVD_U_T = 0x01;
+    var SVD_V_T = 0x02;
 
     var data_t = (function () {
-        function data_t(size_in_bytes) {
-            this.size = size_in_bytes|0;
-            this.buffer = new ArrayBuffer(size_in_bytes);
+        function data_t(size_in_bytes, buffer) {
+            // we need align size to multiple of 8
+            this.size = ((size_in_bytes + 7) | 0) & -8;
+            if (typeof buffer === "undefined") { 
+                this.buffer = new ArrayBuffer(this.size);
+            } else {
+                this.buffer = buffer;
+                this.size = buffer.length;
+            }
             this.u8 = new Uint8Array(this.buffer);
             this.i32 = new Int32Array(this.buffer);
             this.f32 = new Float32Array(this.buffer);
+            this.f64 = new Float64Array(this.buffer);
         }
         return data_t;
     })();
 
     var matrix_t = (function () {
         // columns, rows, data_type
-        function matrix_t(c, r, data_type) {
+        function matrix_t(c, r, data_type, data_buffer) {
             this.type = get_data_type(data_type)|0;
             this.channel = get_channel(data_type)|0;
             this.cols = c|0;
             this.rows = r|0;
-            this.buffer = new data_t((c * get_data_type_size(data_type) * get_channel(data_type)) * r);
+            if (typeof data_buffer === "undefined") { 
+                this.buffer = new data_t((c * get_data_type_size(data_type) * get_channel(data_type)) * r);
+            } else {
+                this.buffer = data_buffer;
+            }
             // data user asked for
-            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : this.buffer.f32);
+            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
         matrix_t.prototype.set_data_type = function(data_type) {
             this.type = get_data_type(data_type)|0;
@@ -72,7 +90,13 @@
             delete this.buffer;
             //
             this.buffer = new data_t((this.cols * get_data_type_size(data_type) * get_channel(data_type)) * this.rows);
-            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : this.buffer.f32);
+            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
+        }
+        matrix_t.prototype.set_data = function(array) {
+            var i = array.length;
+            while(--i >= 0) {
+                this.data[i] = array[i];
+            }
         }
         return matrix_t;
     })();
@@ -142,8 +166,14 @@
     global.C3_t = C3_t;
     global.C4_t = C4_t;
 
+    // constants
+    global.EPSILON = EPSILON;
+    global.FLT_MIN = FLT_MIN;
+
     // options
     global.BOX_BLUR_NOSCALE = BOX_BLUR_NOSCALE;
+    global.SVD_U_T = SVD_U_T;
+    global.SVD_V_T = SVD_V_T;
 
     global.get_data_type = get_data_type;
     global.get_channel = get_channel;
