@@ -42,9 +42,11 @@
                         <li><a href="#structs"><i class="icon-chevron-right"></i> Data structures</a></li>
                         <li><a href="#cachepool"><i class="icon-chevron-right"></i> Cache pool</a></li>
                         <li><a href="#math"><i class="icon-chevron-right"></i> Math</a></li>
+                        <li><a href="#matmath"><i class="icon-chevron-right"></i> Matrix Math</a></li>
+                        <li><a href="#linalg"><i class="icon-chevron-right"></i> Linear Algebra</a></li>
                         <li><a href="#transform"><i class="icon-chevron-right"></i> Transform</a></li>
                         <li><a href="#imgproc"><i class="icon-chevron-right"></i> Image processing</a></li>
-                        <li><a href="#fastcorners"><i class="icon-chevron-right"></i> Fast corners</a></li>
+                        <li><a href="#features2d"><i class="icon-chevron-right"></i> Features 2D</a></li>
                         <li><a href="#opticalflowlk"><i class="icon-chevron-right"></i> Lukas Kanade optical flow</a></li>
                         <li><a href="#haar"><i class="icon-chevron-right"></i> Haar object detector</a></li>
                         <li><a href="#bbf"><i class="icon-chevron-right"></i> BBF object detector</a></li>
@@ -56,7 +58,7 @@
                         <p>Most of <code>JSFEAT</code> methods relies on custom data structures. There are just few provided at the moment but I'm sure its number will increase with new functionality.</p>
                         <h4>matrix_t</h4>
                         <p>The core and starting structure for any project is most likely <code>matrix_t</code>:</p>
-                        <pre class="prettyprint linenums">var my_matrix = new jsfeat.matrix_t(columns, rows, data_type);</pre>
+<pre class="prettyprint linenums">var my_matrix = new jsfeat.matrix_t(columns, rows, data_type, data_buffer = undefined);</pre>
                         <p><code>matrix_t</code> is quite flexible structure, it can be used as image representation or regular matrix for mathematics. <code>columns</code> and <code>rows</code> is the same as defining <code>width</code> and <code>height</code> for image. But let's look at <code>data_type</code> argument. It allows you to describe <code>matrix_t</code> underlaying data.</p>
                         <p>To construct <code>data_type</code> you need to use library internal signatures. <span class="label label-important">NOTE:</span> at the moment most of methods support only single channel operations due to performance reasons.</p>
 <pre class="prettyprint linenums">
@@ -86,12 +88,19 @@ my_matrix.set_data_type(jsfeat.F32_t | jsfeat.C3_t);
                         <h4>data_t</h4>
                         <p>This is just a wrapper for JavaScript <code>ArrayBuffer</code>. But provides easier way to interpret underlaying data:</p>
 <pre class="prettyprint linenums">
-var my_data = new jsfeat.data_t(size_in_bytes);
+// you can provide preallocated ArrayBuffer
+var my_data = new jsfeat.data_t(size_in_bytes, buffer = undefined);
 
 var my_data_buffer = my_data.buffer; // ArrayBuffer
 var u8_data = my_data.u8; // Uint8Array
 var i32_data = my_data.i32; // Int32Array
 var f32_data = my_data.f32; // Float32Array
+</pre>
+<pre class="prettyprint linenums">
+// you can also provide pre-allocated data_t for matrix
+var columns = 320, rows = 240, data_type = jsfeat.U8_t | jsfeat.C1_t;
+var data_buffer = new jsfeat.data_t(columns*rows);
+var my_matrix = new jsfeat.matrix_t(columns, rows, data_type, data_buffer);
 </pre>
                         <h4>pyramid_t</h4>
                         <p>A structure to wrap several <code>matrix_t</code> instances. Each <code>data</code> entry is 2x smaller then previous:</p>
@@ -130,6 +139,13 @@ var temp_u8 = temp_buffer.u8; // Uint8Array 640 entries
 // but you also can get other data types
 // Int32Array but length will be 640/4 = 160 entries
 var temp_i32 = temp_buffer.i32;
+
+// since all buffers comes from data_t instance
+// you can also use it to construct matrix_t
+var columns = 320, rows = 240, data_type = jsfeat.U8_t | jsfeat.C1_t;
+var my_matrix = new jsfeat.matrix_t(columns, rows, data_type, temp_buffer.data);
+
+// be careful because you always should provide enough space for matrix
 </pre>
                         <p><span class="label label-important">NOTE:</span> you always need to put buffer back to cache pool after you are done:</p>
 <pre class="prettyprint linenums">
@@ -175,6 +191,86 @@ jsfeat.math.qsort(point_arr, 0, point_arr.length-1, cmp_points);
 <pre class="prettyprint linenums">
 var arr = [10,2,1,0,0,4,6,1,3,8,5,3];
 var median = jsfeat.math.median(arr, 0, arr.length-1);
+</pre>
+                    </section>
+                    <section id="matmath">
+                        <h2>Matrix Math</h2>
+                        <p>Various generalized matrix operations.</p>
+                        <h4>transpose</h4>
+                        <p>Transposes a matrix.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.transpose(At:matrix_t, A:matrix_t);
+</pre>
+                        <h4>multiply</h4>
+                        <p>Performs matrix multiplication.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.multiply(C:matrix_t, A:matrix_t, B:matrix_t);
+</pre>
+                        <h4>multiply_ABt</h4>
+                        <p>Post multiply the <code>nrows x ncols</code> matrix <code>A</code> by the transpose of the <code>mrows x ncols</code> matrix <code>B</code> to form the <code>nrows x mrows</code> matrix <code>C</code>, i.e. <code>C = A*B'</code>.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.multiply_ABt(C:matrix_t, A:matrix_t, B:matrix_t);
+</pre>
+                        <h4>multiply_AtB</h4>
+                        <p>Post multiply the transpose of the <code>nrows x ncols</code> matrix <code>A</code> by the <code>nrows x mcols</code> matrix <code>B</code> to form the <code>ncols x mcols</code> matrix <code>C</code>, i.e. <code>C = A'*B</code>.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.multiply_AtB(C:matrix_t, A:matrix_t, B:matrix_t);
+</pre>
+                        <h4>multiply_AAt</h4>
+                        <p>Post multiply an <code>nrows x ncols</code> matrix <code>A</code> by its transpose. The result is an <code>nrows x nrows</code> square symmetric matrix <code>C</code>, i.e. <code>C = A*A'</code>.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.multiply_AAt(C:matrix_t, A:matrix_t);
+</pre>
+                        <h4>multiply_AtA</h4>
+                        <p>Pre multiply an <code>nrows x ncols</code> matrix <code>A</code> by its transpose. The result is an <code>ncols x ncols</code> square symmetric matrix <code>C</code>, i.e. <code>C = A'*A</code>.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.multiply_AtA(C:matrix_t, A:matrix_t);
+</pre>
+                    </section>
+                    <section id="linalg">
+                        <h2>Linear Algebra</h2>
+                        <h4>lu_solve</h4>
+                        <p>Solves the system of linear equations <code>Ax = B</code> using Gaussian elimination with optimal pivot element chosen. <span class="label label-important">NOTE:</span> input <code>matrix_t</code> instances will be modified and result output in matrix <code>B</code>.</p>
+<pre class="prettyprint linenums">
+// A and B modified and result output in B
+jsfeat.linalg.lu_solve(A:matrix_t, B:matrix_t);
+</pre>
+                        <h4>cholesky_solve</h4>
+                        <p>Solves the system of linear equations <code>Ax = B</code> using Cholesky factorization. The matrix must be symmetrical and positively defined. <span class="label label-important">NOTE:</span> input <code>matrix_t</code> instances will be modified and result output in matrix <code>B</code>.</p>
+<pre class="prettyprint linenums">
+// A and B modified and result output in B
+jsfeat.linalg.cholesky_solve(A:matrix_t, B:matrix_t);
+</pre>
+                        <h4>svd_decompose</h4>
+                        <p>This routine decomposes an <code>rows x cols</code> matrix <code>A</code>, into a product of the three matrices <code>U</code>, <code>W</code>, and <code>V'</code>, i.e. <code>A = UWV'</code>, where <code>U</code> is an <code>rows x rows</code> matrix whose columns are orthogonal, <code>W</code> is a <code>1 x cols</code> matrix, and <code>V</code> is an <code>cols x cols</code> orthogonal matrix.</p>
+<pre class="prettyprint linenums">
+// U       - the left orthogonal matrix
+// W       - vector of singular values
+// V       - the right orthogonal matrix
+// options - jsfeat.SVD_U_T and/or jsfeat.SVD_V_T to return transposed U and/or V
+jsfeat.linalg.svd_decompose(A:matrix_t, W:matrix_t, U:matrix_t, V:matrix_t, options);
+</pre>
+                        <h4>svd_solve</h4>
+                        <p>Solves the system of linear equations <code>Ax = B</code> using Singular value decomposition (SVD) method; the system can be over-defined and/or the matrix <code>A</code> can be singular.</p>
+<pre class="prettyprint linenums">
+// A - left-hand side of the system
+// B - right-hand side of the system
+// X - output solution
+jsfeat.linalg.svd_solve(A:matrix_t, X:matrix_t, B:matrix_t);
+</pre>
+                        <h4>svd_invert</h4>
+                        <p>This routine calculates the pseudo-inverse of the matrix <code>A</code>.</p>
+<pre class="prettyprint linenums">
+// inverts matrix A to matrix Ainvert
+jsfeat.linalg.svd_invert(Ainvert:matrix_t, A:matrix_t);
+</pre>
+                        <h4>eigenVV</h4>
+                        <p>Computes eigenvalues and eigenvectors of a symmetric matrix.</p>
+<pre class="prettyprint linenums">
+jsfeat.linalg.eigenVV(A:matrix_t, EigenVectors:matrix_t, EigenValues:matrix_t);
+// you can ask for Vectors or Values only
+jsfeat.linalg.eigenVV(A:matrix_t, null, EigenValues:matrix_t);
+jsfeat.linalg.eigenVV(A:matrix_t, EigenVectors:matrix_t, null);
 </pre>
                     </section>
                     <section id="transform">
@@ -294,8 +390,10 @@ jsfeat.imgproc.warp_affine(source:matrix_t, dest:matrix_t,
                            warp_mat:Array, fill_value = 0);
 </pre>
                     </section>
-                    <section id="fastcorners">
-                        <h2>Fast corners</h2>
+                    <section id="features2d">
+                        <h2>Features 2D</h2>
+                        <p>Feature Detection and Description</p>
+                        <h4>Fast corners</h4>
                         <p>Detects corners using the <code>FAST</code> algorithm.</p>
                         <p><a href="sample_fast_corners.html" target="_blank" role="button" class="btn btn-mini">FAST CORNERS DEMO</a></p>
 <pre class="prettyprint linenums">
@@ -314,6 +412,47 @@ for(var i = 0; i &lt; img.cols*img.rows, ++i) {
 // perform detection
 // returns the amount of detected corners
 var count = jsfeat.fast_corners.detect(img:matrix_t, corners:Array, border = 3);
+</pre>
+                        <h4>YAPE06</h4>
+                        <p>Laplacian and min eigen value based feature detector by CVLab (Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland).</p>
+                        <p><a href="sample_yape06.html" target="_blank" role="button" class="btn btn-mini">YAPE06 DEMO</a></p>
+<pre class="prettyprint linenums">
+var corners = [],
+    laplacian_threshold = 30,
+    min_eigen_value_threshold = 25;
+
+// choose threshold values
+jsfeat.yape06.laplacian_threshold = laplacian_threshold;
+jsfeat.yape06.min_eigen_value_threshold = min_eigen_value_threshold;
+
+// you should use preallocated point2d_t array
+for(var i = 0; i &lt; img.cols*img.rows, ++i) {
+    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+}
+
+// perform detection
+// returns the amount of detected corners
+var count = jsfeat.yape06.detect(img:matrix_t, corners:Array);
+</pre>
+                        <h4>YAPE</h4>
+                        <p>Yet Another Point Extractor by CVLab (Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland).</p>
+                        <p><a href="sample_yape.html" target="_blank" role="button" class="btn btn-mini">YAPE DEMO</a></p>
+<pre class="prettyprint linenums">
+var corners = [],
+    image_width = img.cols, image_height = img.rows,
+    radius = 5, pyramid_levels = 1; // for now only single level support
+
+// YAPE needs init before running detection
+jsfeat.yape.init(image_width, image_height, radius, pyramid_levels);
+
+// you should use preallocated point2d_t array
+for(var i = 0; i &lt; img.cols*img.rows, ++i) {
+    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+}
+
+// perform detection
+// returns the amount of detected corners
+var count = jsfeat.yape.detect(img:matrix_t, corners:Array, border = 4);
 </pre>
                     </section>
                     <section id="opticalflowlk">

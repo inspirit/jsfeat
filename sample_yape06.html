@@ -1,0 +1,167 @@
+<!doctype html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="description" content="A JavaScript Computer Vision Library">
+        <meta name="author" content="Eugene Zatepyakin">
+        <title>JSFeat - JavaScript Computer Vision Library.</title>
+
+        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="css/bootstrap.css">
+        <link rel="stylesheet" href="css/jsfeat.css">
+
+        <script type="text/javascript">
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-36419199-1']);
+          _gaq.push(['_trackPageview']);
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+        </script>
+    </head>
+    <body>
+            <video id="webcam" width="640" height="480" style="display:none;"></video>
+            <div style=" width:640px;height:480px;margin: 10px auto;">
+                <canvas id="canvas" width="640" height="480"></canvas>
+                <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
+                <div id="log" class="alert alert-info"></div>
+            </div>
+
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script type="text/javascript" src="js/jsfeat-min.js"></script>
+        <script type="text/javascript" src="js/compatibility.js"></script>
+        <script type="text/javascript" src="js/profiler.js"></script>
+        <script type="text/javascript" src="js/dat.gui.min.js"></script>
+        <script type="text/javascript">
+
+        $(window).load(function() {
+            "use strict";
+
+            // lets do some fun
+            var video = document.getElementById('webcam');
+            var canvas = document.getElementById('canvas');
+            try {
+                compatibility.getUserMedia({video: true}, function(stream) {
+                    try {
+                        video.src = compatibility.URL.createObjectURL(stream);
+                    } catch (error) {
+                        video.src = stream;
+                    }
+                    video.addEventListener('canplay', function() {
+                        video.removeEventListener('canplay');
+                        setTimeout(function() {
+                            video.play();
+                            demo_app();
+                        
+                            compatibility.requestAnimationFrame(tick);
+                        }, 500);
+                    }, true);
+                }, function (error) {
+                    $('#canvas').hide();
+                    $('#log').hide();
+                    $('#no_rtc').html('<h4>WebRTC not available.</h4>');
+                    $('#no_rtc').show();
+                });
+            } catch (error) {
+                $('#canvas').hide();
+                $('#log').hide();
+                $('#no_rtc').html('<h4>Something goes wrong...</h4>');
+                $('#no_rtc').show();
+            }
+
+            var stat = new profiler();
+
+            var gui,options,ctx,canvasWidth,canvasHeight;
+            var img_u8, corners;
+
+            var demo_opt = function(){
+                this.lap_thres = 30;
+                this.eigen_thres = 25;
+            }
+
+            function demo_app() {
+                canvasWidth  = canvas.width;
+                canvasHeight = canvas.height;
+                ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = "rgb(0,255,0)";
+                ctx.strokeStyle = "rgb(0,255,0)";
+
+                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+
+                corners = [];
+                var i = 640*480;
+                while(--i >= 0) {
+                    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+                }
+
+                options = new demo_opt();
+                gui = new dat.GUI();
+
+                gui.add(options, "lap_thres", 1, 100);
+                gui.add(options, "eigen_thres", 1, 100);
+
+                stat.add("grayscale");
+                stat.add("box blur");
+                stat.add("yape06");
+            }
+
+            function tick() {
+                compatibility.requestAnimationFrame(tick);
+                stat.new_frame();
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, 640, 480);
+                    var imageData = ctx.getImageData(0, 0, 640, 480);
+
+                    stat.start("grayscale");
+                    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                    stat.stop("grayscale");
+
+                    stat.start("box blur");
+                    jsfeat.imgproc.box_blur_gray(img_u8, img_u8, 2, 0);
+                    stat.stop("box blur");
+
+                    jsfeat.yape06.laplacian_threshold = options.lap_thres|0;
+                    jsfeat.yape06.min_eigen_value_threshold = options.eigen_thres|0;
+
+                    stat.start("yape06");
+                    var count = jsfeat.yape06.detect(img_u8, corners);
+                    stat.stop("yape06");
+
+                    // render result back to canvas
+                    var data_u32 = new Uint32Array(imageData.data.buffer);
+                    render_corners(corners, count, data_u32, 640);
+                    
+                    ctx.putImageData(imageData, 0, 0);
+
+                    $('#log').html(stat.log());
+                }
+            }
+
+            function render_corners(corners, count, img, step) {
+                var pix = (0xff << 24) | (0x00 << 16) | (0xff << 8) | 0x00;
+                for(var i=0; i < count; ++i)
+                {
+                    var x = corners[i].x;
+                    var y = corners[i].y;
+                    var off = (x + y * step);
+                    img[off] = pix;
+                    img[off-1] = pix;
+                    img[off+1] = pix;
+                    img[off-step] = pix;
+                    img[off+step] = pix;
+                }
+            }
+
+            $(window).unload(function() {
+                video.pause();
+                video.src=null;
+            });
+        });
+        </script>
+    </body>
+</html>
