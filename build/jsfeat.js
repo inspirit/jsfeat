@@ -10,6 +10,7 @@ self.Int32Array = self.Int32Array || Array;
 self.Uint32Array = self.Uint32Array || Array;
 self.Uint8Array = self.Uint8Array || Array;
 self.Float32Array = self.Float32Array || Array;
+self.Float64Array = self.Float64Array || Array;
 
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
@@ -18,6 +19,10 @@ self.Float32Array = self.Float32Array || Array;
 (function(global) {
     "use strict";
     //
+
+    // CONSTANTS
+    var EPSILON = 0.0000001192092896;
+    var FLT_MIN = 1E-37;
 
     // implementation from CCV project
     // currently working only with u8,s32,f32
@@ -54,28 +59,42 @@ self.Float32Array = self.Float32Array || Array;
 
     // box blur option
     var BOX_BLUR_NOSCALE = 0x01;
+    // svd options
+    var SVD_U_T = 0x01;
+    var SVD_V_T = 0x02;
 
     var data_t = (function () {
-        function data_t(size_in_bytes) {
-            this.size = size_in_bytes|0;
-            this.buffer = new ArrayBuffer(size_in_bytes);
+        function data_t(size_in_bytes, buffer) {
+            // we need align size to multiple of 8
+            this.size = ((size_in_bytes + 7) | 0) & -8;
+            if (typeof buffer === "undefined") { 
+                this.buffer = new ArrayBuffer(this.size);
+            } else {
+                this.buffer = buffer;
+                this.size = buffer.length;
+            }
             this.u8 = new Uint8Array(this.buffer);
             this.i32 = new Int32Array(this.buffer);
             this.f32 = new Float32Array(this.buffer);
+            this.f64 = new Float64Array(this.buffer);
         }
         return data_t;
     })();
 
     var matrix_t = (function () {
         // columns, rows, data_type
-        function matrix_t(c, r, data_type) {
+        function matrix_t(c, r, data_type, data_buffer) {
             this.type = get_data_type(data_type)|0;
             this.channel = get_channel(data_type)|0;
             this.cols = c|0;
             this.rows = r|0;
-            this.buffer = new data_t((c * get_data_type_size(data_type) * get_channel(data_type)) * r);
+            if (typeof data_buffer === "undefined") { 
+                this.buffer = new data_t((c * get_data_type_size(data_type) * get_channel(data_type)) * r);
+            } else {
+                this.buffer = data_buffer;
+            }
             // data user asked for
-            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : this.buffer.f32);
+            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
         matrix_t.prototype.set_data_type = function(data_type) {
             this.type = get_data_type(data_type)|0;
@@ -85,7 +104,13 @@ self.Float32Array = self.Float32Array || Array;
             delete this.buffer;
             //
             this.buffer = new data_t((this.cols * get_data_type_size(data_type) * get_channel(data_type)) * this.rows);
-            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : this.buffer.f32);
+            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
+        }
+        matrix_t.prototype.set_data = function(array) {
+            var i = array.length;
+            while(--i >= 0) {
+                this.data[i] = array[i];
+            }
         }
         return matrix_t;
     })();
@@ -155,8 +180,14 @@ self.Float32Array = self.Float32Array || Array;
     global.C3_t = C3_t;
     global.C4_t = C4_t;
 
+    // constants
+    global.EPSILON = EPSILON;
+    global.FLT_MIN = FLT_MIN;
+
     // options
     global.BOX_BLUR_NOSCALE = BOX_BLUR_NOSCALE;
+    global.SVD_U_T = SVD_U_T;
+    global.SVD_V_T = SVD_V_T;
 
     global.get_data_type = get_data_type;
     global.get_channel = get_channel;
@@ -186,11 +217,23 @@ self.Float32Array = self.Float32Array || Array;
         var _pool_node_t = (function () {
             function _pool_node_t(size_in_bytes) {
                 this.next = null;
-                this.size = size_in_bytes|0;
-                this.buffer = new ArrayBuffer(size_in_bytes);
-                this.u8 = new Uint8Array(this.buffer);
-                this.i32 = new Int32Array(this.buffer);
-                this.f32 = new Float32Array(this.buffer);
+                this.data = new jsfeat.data_t(size_in_bytes);
+                this.size = this.data.size;
+                this.buffer = this.data.buffer;
+                this.u8 = this.data.u8;
+                this.i32 = this.data.i32;
+                this.f32 = this.data.f32;
+                this.f64 = this.data.f64;
+            }
+            _pool_node_t.prototype.resize = function(size_in_bytes) {
+                delete this.data;
+                this.data = new jsfeat.data_t(size_in_bytes);
+                this.size = this.data.size;
+                this.buffer = this.data.buffer;
+                this.u8 = this.data.u8;
+                this.i32 = this.data.i32;
+                this.f32 = this.data.f32;
+                this.f64 = this.data.f64;
             }
             return _pool_node_t;
         })();
@@ -217,11 +260,7 @@ self.Float32Array = self.Float32Array || Array;
                 _pool_size--;
 
                 if(size_in_bytes > node.size) {
-                    node.buffer = new ArrayBuffer(size_in_bytes);
-                    node.u8 = new Uint8Array(node.buffer);
-                    node.i32 = new Int32Array(node.buffer);
-                    node.f32 = new Float32Array(node.buffer);
-                    node.size = size_in_bytes;
+                    node.resize(size_in_bytes);
                 }
 
                 return node;
@@ -539,6 +578,867 @@ self.Float32Array = self.Float32Array || Array;
 
 })(jsfeat);
 
+/**
+ * @author Eugene Zatepyakin / http://inspirit.ru/
+ *
+ */
+
+(function(global) {
+    "use strict";
+    //
+
+    var matmath = (function() {
+        
+        return {
+            transpose: function(At, A) {
+                var i=0,j=0,nrows=A.rows,ncols=A.cols;
+                var Ai=0,Ati=0,pAt=0;
+                var ad=A.data,atd=At.data;
+
+                for (; i < nrows; Ati += 1, Ai += ncols, i++) {
+                    pAt = Ati;
+                    for (j = 0; j < ncols; pAt += nrows, j++) atd[pAt] = ad[Ai+j];
+                }
+            },
+
+            // C = A * B
+            multiply: function(C, A, B) {
+                var i=0,j=0,k=0;
+                var Ap=0,pA=0,pB=0,p_B=0,Cp=0;
+                var ncols=A.cols,nrows=A.rows,mcols=B.cols;
+                var ad=A.data,bd=B.data,cd=C.data;
+                var sum=0.0;
+
+                for (; i < nrows; Ap += ncols, i++) {
+                    for (p_B = 0, j = 0; j < mcols; Cp++, p_B++, j++) {
+                        pB = p_B;
+                        pA = Ap;
+                        sum = 0.0;
+                        for (k = 0; k < ncols; pA++, pB += mcols, k++) {
+                            sum += ad[pA] * bd[pB];
+                        }
+                        cd[Cp] = sum;
+                    }
+                }
+            },
+
+            // C = A * B'
+            multiply_ABt: function(C, A, B) {
+                var i=0,j=0,k=0;
+                var Ap=0,pA=0,pB=0,Cp=0;
+                var ncols=A.cols,nrows=A.rows,mrows=B.rows;
+                var ad=A.data,bd=B.data,cd=C.data;
+                var sum=0.0;
+
+                for (; i < nrows; Ap += ncols, i++) {
+                    for (pB = 0, j = 0; j < mrows; Cp++, j++) {
+                        pA = Ap;
+                        sum = 0.0;
+                        for (k = 0; k < ncols; pA++, pB++, k++) {
+                            sum += ad[pA] * bd[pB];
+                        }
+                        cd[Cp] = sum;
+                    }
+                }
+            },
+
+            // C = A' * B
+            multiply_AtB: function(C, A, B) {
+                var i=0,j=0,k=0;
+                var Ap=0,pA=0,pB=0,p_B=0,Cp=0;
+                var ncols=A.cols,nrows=A.rows,mcols=B.cols;
+                var ad=A.data,bd=B.data,cd=C.data;
+                var sum=0.0;
+
+                for (; i < ncols; Ap++, i++) {
+                    for (p_B = 0, j = 0; j < mcols; Cp++, p_B++, j++) {
+                        pB = p_B;
+                        pA = Ap;
+                        sum = 0.0;
+                        for (k = 0; k < nrows; pA += ncols, pB += mcols, k++) {
+                            sum += ad[pA] * bd[pB];
+                        }
+                        cd[Cp] = sum;
+                    }
+                }
+            },
+
+            // C = A * A'
+            multiply_AAt: function(C, A) {
+                var i=0,j=0,k=0;
+                var pCdiag=0,p_A=0,pA=0,pB=0,pC=0,pCt=0;
+                var ncols=A.cols,nrows=A.rows;
+                var ad=A.data,cd=C.data;
+                var sum=0.0;
+
+                for (; i < nrows; pCdiag += nrows + 1, p_A = pA, i++) {
+                    pC = pCdiag;
+                    pCt = pCdiag;
+                    pB = p_A; 
+                    for (j = i; j < nrows; pC++, pCt += nrows, j++) {
+                        pA = p_A;
+                        sum = 0.0;
+                        for (k = 0; k < ncols; k++) {
+                            sum += ad[pA++] * ad[pB++];
+                        }
+                        cd[pC] = sum
+                        cd[pCt] = sum;
+                    }
+                }
+            },
+
+            // C = A' * A
+            multiply_AtA: function(C, A) {
+                var i=0,j=0,k=0;
+                var p_A=0,pA=0,pB=0,p_C=0,pC=0,p_CC=0;
+                var ncols=A.cols,nrows=A.rows;
+                var ad=A.data,cd=C.data;
+                var sum=0.0;
+
+                for (; i < ncols; p_C += ncols, i++) {
+                    p_A = i;
+                    p_CC = p_C + i;
+                    pC = p_CC;
+                    for (j = i; j < ncols; pC++, p_CC += ncols, j++) {
+                        pA = p_A;
+                        pB = j;
+                        sum = 0.0;
+                        for (k = 0; k < nrows; pA += ncols, pB += ncols, k++) {
+                            sum += ad[pA] * ad[pB];
+                        }
+                        cd[pC] = sum
+                        cd[p_CC] = sum;
+                    }
+                }
+            }
+        };
+
+    })();
+
+    global.matmath = matmath;
+
+})(jsfeat);
+/**
+ * @author Eugene Zatepyakin / http://inspirit.ru/
+ *
+ */
+
+(function(global) {
+    "use strict";
+    //
+
+    var linalg = (function() {
+
+        var swap = function(A, i0, i1, t) {
+            t = A[i0];
+            A[i0] = A[i1];
+            A[i1] = t;
+        }
+
+        var hypot = function(a, b) {
+            a = Math.abs(a);
+            b = Math.abs(b);
+            if( a > b ) {
+                b /= a;
+                return a*Math.sqrt(1.0 + b*b);
+            }
+            if( b > 0 ) {
+                a /= b;
+                return b*Math.sqrt(1.0 + a*a);
+            }
+            return 0.0;
+        }
+
+        var JacobiImpl = function(A, astep, W, V, vstep, n) {
+            var eps = jsfeat.EPSILON;
+            var i=0,j=0,k=0,m=0,l=0,idx=0,_in=0,_in2=0;
+            var iters=0,max_iter=n*n*30;
+            var mv=0.0,val=0.0,p=0.0,y=0.0,t=0.0,s=0.0,c=0.0,a0=0.0,b0=0.0;
+
+            var indR_buff = jsfeat.cache.get_buffer(n<<2);
+            var indC_buff = jsfeat.cache.get_buffer(n<<2);
+            var indR = indR_buff.i32;
+            var indC = indC_buff.i32;
+
+            if(V) {
+                for(; i < n; i++) {
+                    k = i*vstep;
+                    for(j = 0; j < n; j++) {
+                        V[k + j] = 0.0;
+                    }
+                    V[k + i] = 1.0;
+                }
+            }
+
+            for(k = 0; k < n; k++) {
+                W[k] = A[(astep + 1)*k];
+                if(k < n - 1) {
+                    for(m = k+1, mv = Math.abs(A[astep*k + m]), i = k+2; i < n; i++) {
+                        val = Math.abs(A[astep*k+i]);
+                        if(mv < val)
+                            mv = val, m = i;
+                    }
+                    indR[k] = m;
+                }
+                if(k > 0) {
+                    for(m = 0, mv = Math.abs(A[k]), i = 1; i < k; i++) {
+                        val = Math.abs(A[astep*i+k]);
+                        if(mv < val)
+                            mv = val, m = i;
+                    }
+                    indC[k] = m;
+                }
+            }
+
+            if(n > 1) for( ; iters < max_iter; iters++) {
+                // find index (k,l) of pivot p
+                for(k = 0, mv = Math.abs(A[indR[0]]), i = 1; i < n-1; i++) {
+                    val = Math.abs(A[astep*i + indR[i]]);
+                    if( mv < val )
+                        mv = val, k = i;
+                }
+                l = indR[k];
+                for(i = 1; i < n; i++) {
+                    val = Math.abs(A[astep*indC[i] + i]);
+                    if( mv < val )
+                        mv = val, k = indC[i], l = i;
+                }
+                
+                p = A[astep*k + l];
+
+                if(Math.abs(p) <= eps) break;
+
+                y = (W[l] - W[k])*0.5;
+                t = Math.abs(y) + hypot(p, y);
+                s = hypot(p, t);
+                c = t/s;
+                s = p/s; t = (p/t)*p;
+                if(y < 0)
+                    s = -s, t = -t;
+                A[astep*k + l] = 0;
+                
+                W[k] -= t;
+                W[l] += t;
+                
+                // rotate rows and columns k and l
+                for (i = 0; i < k; i++) {
+                    _in = (astep * i + k);
+                    _in2 = (astep * i + l);
+                    a0 = A[_in];
+                    b0 = A[_in2];
+                    A[_in] = a0 * c - b0 * s;
+                    A[_in2] = a0 * s + b0 * c;
+                }
+                for (i = (k + 1); i < l; i++) {
+                    _in = (astep * k + i);
+                    _in2 = (astep * i + l);
+                    a0 = A[_in];
+                    b0 = A[_in2];
+                    A[_in] = a0 * c - b0 * s;
+                    A[_in2] = a0 * s + b0 * c;
+                }
+                i = l + 1;
+                _in = (astep * k + i);
+                _in2 = (astep * l + i);
+                for (; i < n; i++, _in++, _in2++) {
+                    a0 = A[_in];
+                    b0 = A[_in2];
+                    A[_in] = a0 * c - b0 * s;
+                    A[_in2] = a0 * s + b0 * c;
+                }
+                
+                // rotate eigenvectors
+                if (V) {
+                    _in = vstep * k;
+                    _in2 = vstep * l;
+                    for (i = 0; i < n; i++, _in++, _in2++) {
+                        a0 = V[_in];
+                        b0 = V[_in2];
+                        V[_in] = a0 * c - b0 * s;
+                        V[_in2] = a0 * s + b0 * c;
+                    }
+                }
+                
+                for(j = 0; j < 2; j++) {
+                    idx = j == 0 ? k : l;
+                    if(idx < n - 1) {
+                        for(m = idx+1, mv = Math.abs(A[astep*idx + m]), i = idx+2; i < n; i++) {
+                            val = Math.abs(A[astep*idx+i]);
+                            if( mv < val )
+                                mv = val, m = i;
+                        }
+                        indR[idx] = m;
+                    }
+                    if(idx > 0) {
+                        for(m = 0, mv = Math.abs(A[idx]), i = 1; i < idx; i++) {
+                            val = Math.abs(A[astep*i+idx]);
+                            if( mv < val )
+                                mv = val, m = i;
+                        }
+                        indC[idx] = m;
+                    }
+                }
+            }
+
+            // sort eigenvalues & eigenvectors
+            for(k = 0; k < n-1; k++) {
+                m = k;
+                for(i = k+1; i < n; i++) {
+                    if(W[m] < W[i])
+                        m = i;
+                }
+                if(k != m) {
+                    swap(W, m, k, mv);
+                    if(V) {
+                        for(i = 0; i < n; i++) {
+                            swap(V, vstep*m + i, vstep*k + i, mv);
+                        }
+                    }
+                }
+            }
+
+
+            jsfeat.cache.put_buffer(indR_buff);
+            jsfeat.cache.put_buffer(indC_buff);
+        }
+
+        var JacobiSVDImpl = function(At, astep, _W, Vt, vstep, m, n, n1) {
+            var eps = jsfeat.EPSILON * 10.0;
+            var minval = jsfeat.FLT_MIN;
+            var i=0,j=0,k=0,iter=0,max_iter=Math.max(m, 30);
+            var Ai=0,Aj=0,Vi=0,Vj=0,changed=0;
+            var c=0.0, s=0.0, t=0.0;
+            var t0=0.0,t1=0.0,sd=0.0,beta=0.0,gamma=0.0,delta=0.0,a=0.0,p=0.0,b=0.0;
+            var seed = 0x1234;
+            var val=0.0,val0=0.0,asum=0.0;
+
+            var W_buff = jsfeat.cache.get_buffer(n<<3);
+            var W = W_buff.f64;
+            
+            for(; i < n; i++) {
+                for(k = 0, sd = 0; k < m; k++) {
+                    t = At[i*astep + k];
+                    sd += t*t;
+                }
+                W[i] = sd;
+                
+                if(Vt) {
+                    for(k = 0; k < n; k++) {
+                        Vt[i*vstep + k] = 0;
+                    }
+                    Vt[i*vstep + i] = 1;
+                }
+            }
+            
+            for(; iter < max_iter; iter++) {
+                changed = 0;
+                
+                for(i = 0; i < n-1; i++) {
+                    for(j = i+1; j < n; j++) {
+                        Ai = (i*astep)|0, Aj = (j*astep)|0;
+                        a = W[i], p = 0, b = W[j];
+                        
+                        k = 3;
+                        p += At[Ai]*At[Aj];
+                        p += At[Ai+1]*At[Aj+1];
+                        p += At[Ai+2]*At[Aj+2];
+
+                        for(; k < m; k++)
+                            p += At[Ai+k]*At[Aj+k];
+                        
+                        if(Math.abs(p) <= eps*Math.sqrt(a*b)) continue;
+                        
+                        p *= 2.0;
+                        beta = a - b, gamma = hypot(p, beta);
+                        if(beta < 0) {
+                            delta = (gamma - beta)*0.5;
+                            s = Math.sqrt(delta/gamma);
+                            c = (p/(gamma*s*2.0));
+                        } else {
+                            c = Math.sqrt((gamma + beta)/(gamma*2.0));
+                            s = (p/(gamma*c*2.0));
+                            delta = p*p*0.5/(gamma + beta);
+                        }
+                        
+                        W[i] += delta;
+                        W[j] -= delta;
+                        
+                        if( (iter & 1) && W[i] > 0 && W[j] > 0 ) {
+                            k = 3;//unroll 3x3
+                            t0 = c*At[Ai] + s*At[Aj];
+                            t1 = -s*At[Ai] + c*At[Aj];
+                            At[Ai] = t0; At[Aj] = t1;
+
+                            t0 = c*At[Ai+1] + s*At[Aj+1];
+                            t1 = -s*At[Ai+1] + c*At[Aj+1];
+                            At[Ai+1] = t0; At[Aj+1] = t1;
+
+                            t0 = c*At[Ai+2] + s*At[Aj+2];
+                            t1 = -s*At[Ai+2] + c*At[Aj+2];
+                            At[Ai+2] = t0; At[Aj+2] = t1;
+
+                            for(; k < m; k++) {
+                                t0 = c*At[Ai+k] + s*At[Aj+k];
+                                t1 = -s*At[Ai+k] + c*At[Aj+k];
+                                At[Ai+k] = t0; At[Aj+k] = t1;
+                            }
+                        } else {
+                            a = b = 0;
+                            k = 3; // unroll
+                            t0 = c*At[Ai] + s*At[Aj];
+                            t1 = -s*At[Ai] + c*At[Aj];
+                            At[Ai] = t0; At[Aj] = t1;
+                            a += t0*t0; b += t1*t1;
+
+                            t0 = c*At[Ai+1] + s*At[Aj+1];
+                            t1 = -s*At[Ai+1] + c*At[Aj+1];
+                            At[Ai+1] = t0; At[Aj+1] = t1;
+                            a += t0*t0; b += t1*t1;
+
+                            t0 = c*At[Ai+2] + s*At[Aj+2];
+                            t1 = -s*At[Ai+2] + c*At[Aj+2];
+                            At[Ai+2] = t0; At[Aj+2] = t1;
+                            a += t0*t0; b += t1*t1;
+
+                            for( ; k < m; k++ )
+                            {
+                                t0 = c*At[Ai+k] + s*At[Aj+k];
+                                t1 = -s*At[Ai+k] + c*At[Aj+k];
+                                At[Ai+k] = t0; At[Aj+k] = t1;
+                                
+                                a += t0*t0; b += t1*t1;
+                            }
+                            W[i] = a; W[j] = b;
+                        }
+                        
+                        changed = 1;
+                        
+                        if(Vt) {
+                            Vi = (i*vstep)|0, Vj = (j*vstep)|0;
+
+                            k = 3;
+                            t0 = c*Vt[Vi] + s*Vt[Vj];
+                            t1 = -s*Vt[Vi] + c*Vt[Vj];
+                            Vt[Vi] = t0; Vt[Vj] = t1;
+
+                            t0 = c*Vt[Vi+1] + s*Vt[Vj+1];
+                            t1 = -s*Vt[Vi+1] + c*Vt[Vj+1];
+                            Vt[Vi+1] = t0; Vt[Vj+1] = t1;
+
+                            t0 = c*Vt[Vi+2] + s*Vt[Vj+2];
+                            t1 = -s*Vt[Vi+2] + c*Vt[Vj+2];
+                            Vt[Vi+2] = t0; Vt[Vj+2] = t1;
+
+                            for(; k < n; k++) {
+                                t0 = c*Vt[Vi+k] + s*Vt[Vj+k];
+                                t1 = -s*Vt[Vi+k] + c*Vt[Vj+k];
+                                Vt[Vi+k] = t0; Vt[Vj+k] = t1;
+                            }
+                        }
+                    }
+                }
+                if(changed == 0) break;
+            }
+            
+            for(i = 0; i < n; i++) {
+                for(k = 0, sd = 0; k < m; k++) {
+                    t = At[i*astep + k];
+                    sd += t*t;
+                }
+                W[i] = Math.sqrt(sd);
+            }
+            
+            for(i = 0; i < n-1; i++) {
+                j = i;
+                for(k = i+1; k < n; k++) {
+                    if(W[j] < W[k])
+                        j = k;
+                }
+                if(i != j) {
+                    swap(W, i, j, sd);
+                    if(Vt) {
+                        for(k = 0; k < m; k++) {
+                            swap(At, i*astep + k, j*astep + k, t);
+                        }
+                        
+                        for(k = 0; k < n; k++) {
+                            swap(Vt, i*vstep + k, j*vstep + k, t);
+                        }
+                    }
+                }
+            }
+            
+            for(i = 0; i < n; i++) {
+                _W[i] = W[i];
+            }
+            
+            if(!Vt) {
+                jsfeat.cache.put_buffer(W_buff);
+                return;
+            }
+
+            for(i = 0; i < n1; i++) {
+
+                sd = i < n ? W[i] : 0;
+                
+                while(sd <= minval) {
+                    // if we got a zero singular value, then in order to get the corresponding left singular vector
+                    // we generate a random vector, project it to the previously computed left singular vectors,
+                    // subtract the projection and normalize the difference.
+                    val0 = (1.0/m);
+                    for(k = 0; k < m; k++) {
+                        seed = (seed * 214013 + 2531011);
+                        val = (((seed >> 16) & 0x7fff) & 256) != 0 ? val0 : -val0;
+                        At[i*astep + k] = val;
+                    }
+                    for(iter = 0; iter < 2; iter++) {
+                        for(j = 0; j < i; j++) {
+                            sd = 0;
+                            for(k = 0; k < m; k++) {
+                                sd += At[i*astep + k]*At[j*astep + k];
+                            }
+                            asum = 0.0;
+                            for(k = 0; k < m; k++) {
+                                t = (At[i*astep + k] - sd*At[j*astep + k]);
+                                At[i*astep + k] = t;
+                                asum += Math.abs(t);
+                            }
+                            asum = asum ? 1.0/asum : 0;
+                            for(k = 0; k < m; k++) {
+                                At[i*astep + k] *= asum;
+                            }
+                        }
+                    }
+                    sd = 0;
+                    for(k = 0; k < m; k++) {
+                        t = At[i*astep + k];
+                        sd += t*t;
+                    }
+                    sd = Math.sqrt(sd);
+                }
+                
+                s = (1.0/sd);
+                for(k = 0; k < m; k++) {
+                    At[i*astep + k] *= s;
+                }
+            }
+
+            jsfeat.cache.put_buffer(W_buff);
+        }
+        
+        return {
+
+            lu_solve: function(A, B) {
+                var i=0,j=0,k=0,p=1,astep=A.cols;
+                var ad=A.data, bd=B.data;
+                var t,alpha,d,s;
+
+                for(i = 0; i < astep; i++) {
+                    k = i;                    
+                    for(j = i+1; j < astep; j++) {
+                        if(Math.abs(ad[j*astep + i]) > Math.abs(ad[k*astep+i])) {
+                            k = j;
+                        }
+                    }
+                    
+                    if(Math.abs(ad[k*astep+i]) < jsfeat.EPSILON) {
+                        return 0; // FAILED
+                    }
+                    
+                    if(k != i) {
+                        for(j = i; j < astep; j++ ) {
+                            swap(ad, i*astep+j, k*astep+j, t);
+                        }
+                        
+                        swap(bd, i, k, t);
+                        p = -p;
+                    }
+                    
+                    d = -1.0/ad[i*astep+i];
+                    
+                    for(j = i+1; j < astep; j++) {
+                        alpha = ad[j*astep+i]*d;
+                        
+                        for(k = i+1; k < astep; k++) {
+                            ad[j*astep+k] += alpha*ad[i*astep+k];
+                        }
+                        
+                        bd[j] += alpha*bd[i];
+                    }
+                    
+                    ad[i*astep+i] = -d;
+                }
+                
+                for(i = astep-1; i >= 0; i--) {
+                    s = bd[i];
+                    for(k = i+1; k < astep; k++) {
+                        s -= ad[i*astep+k]*bd[k];
+                    }
+                    bd[i] = s*ad[i*astep+i];
+                }
+
+                return 1; // OK
+            },
+
+            cholesky_solve: function(A, B) {
+                var col=0,row=0,col2=0,cs=0,rs=0,i=0,j=0;
+                var size = A.cols;
+                var ad=A.data, bd=B.data;
+                var val,inv_diag;
+
+                for (col = 0; col < size; col++) {
+                    inv_diag = 1.0;
+                    cs = (col * size);
+                    rs = cs;
+                    for (row = col; row < size; row++)
+                    {
+                        // correct for the parts of cholesky already computed
+                        val = ad[(rs+col)];
+                        for (col2 = 0; col2 < col; col2++) {
+                            val -= ad[(col2*size+col)] * ad[(rs+col2)];
+                        }
+                        if (row == col) {
+                            // this is the diagonal element so don't divide
+                            ad[(rs+col)] = val;
+                            if(val == 0) {
+                                return 0;
+                            }
+                            inv_diag = 1.0 / val;
+                        } else {
+                            // cache the value without division in the upper half
+                            ad[(cs+row)] = val;
+                            // divide my the diagonal element for all others
+                            ad[(rs+col)] = val * inv_diag;
+                        }
+                        rs = (rs + size);
+                    }
+                }
+
+                // first backsub through L
+                cs = 0;
+                for (i = 0; i < size; i++) {
+                    val = bd[i];
+                    for (j = 0; j < i; j++) {
+                        val -= ad[(cs+j)] * bd[j];
+                    }
+                    bd[i] = val;
+                    cs = (cs + size);
+                }
+                // backsub through diagonal
+                cs = 0;
+                for (i = 0; i < size; i++) {
+                    bd[i] /= ad[(cs + i)];
+                    cs = (cs + size);
+                }
+                // backsub through L Transpose
+                i = (size-1);
+                for (; i >= 0; i--) {
+                    val = bd[i];
+                    j = (i + 1);
+                    cs = (j * size);
+                    for (; j < size; j++) {
+                        val -= ad[(cs + i)] * bd[j];
+                        cs = (cs + size);
+                    }
+                    bd[i] = val;
+                }
+
+                return 1;
+            },
+
+            svd_decompose: function(A, W, U, V, options) {
+                if (typeof options === "undefined") { options = 0; };
+                var at=0,i=0,j=0,_m=A.rows,_n=A.cols,m=_m,n=_n;
+                var dt = A.type | jsfeat.C1_t; // we only work with single channel
+
+                if(m < n) {
+                    at = 1;
+                    i = m;
+                    m = n;
+                    n = i;
+                }
+
+                var a_buff = jsfeat.cache.get_buffer((m*m)<<3);
+                var w_buff = jsfeat.cache.get_buffer(n<<3);
+                var v_buff = jsfeat.cache.get_buffer((n*n)<<3);
+
+                var a_mt = new jsfeat.matrix_t(m, m, dt, a_buff.data);
+                var w_mt = new jsfeat.matrix_t(1, n, dt, w_buff.data);
+                var v_mt = new jsfeat.matrix_t(n, n, dt, v_buff.data);
+
+                if(at == 0) {
+                    // transpose
+                    jsfeat.matmath.transpose(a_mt, A);
+                } else {
+                    for(i = 0; i < _n*_m; i++) {
+                        a_mt.data[i] = A.data[i];
+                    }
+                    for(; i < n*m; i++) {
+                        a_mt.data[i] = 0;
+                    }
+                }
+
+                JacobiSVDImpl(a_mt.data, m, w_mt.data, v_mt.data, n, m, n, m);
+
+                if(W) {
+                    for(i=0; i < n; i++) {
+                        W.data[i] = w_mt.data[i];
+                    }
+                    for(; i < _n; i++) {
+                        W.data[i] = 0;
+                    }
+                }
+
+                if (at == 0) {
+                    if(U && (options & jsfeat.SVD_U_T)) {
+                        i = m*m;
+                        while(--i >= 0) {
+                            U.data[i] = a_mt.data[i];
+                        }
+                    } else if(U) {
+                        jsfeat.matmath.transpose(U, a_mt);
+                    }
+
+                    if(V && (options & jsfeat.SVD_V_T)) {
+                        i = n*n;
+                        while(--i >= 0) {
+                            V.data[i] = v_mt.data[i];
+                        }
+                    } else if(V) {
+                        jsfeat.matmath.transpose(V, v_mt);
+                    }
+                } else {
+                    if(U && (options & jsfeat.SVD_U_T)) {
+                        i = n*n;
+                        while(--i >= 0) {
+                            U.data[i] = v_mt.data[i];
+                        }
+                    } else if(U) {
+                        jsfeat.matmath.transpose(U, v_mt);
+                    }
+
+                    if(V && (options & jsfeat.SVD_V_T)) {
+                        i = m*m;
+                        while(--i >= 0) {
+                            V.data[i] = a_mt.data[i];
+                        }
+                    } else if(V) {
+                        jsfeat.matmath.transpose(V, a_mt);
+                    }
+                }
+
+                jsfeat.cache.put_buffer(a_buff);
+                jsfeat.cache.put_buffer(w_buff);
+                jsfeat.cache.put_buffer(v_buff);
+
+            },
+
+            svd_solve: function(A, X, B) {
+                var i=0,j=0,k=0;
+                var pu=0,pv=0;
+                var nrows=A.rows,ncols=A.cols;
+                var sum=0.0,xsum=0.0,tol=0.0;
+                var dt = A.type | jsfeat.C1_t;
+
+                var u_buff = jsfeat.cache.get_buffer((nrows*nrows)<<3);
+                var w_buff = jsfeat.cache.get_buffer(ncols<<3);
+                var v_buff = jsfeat.cache.get_buffer((ncols*ncols)<<3);
+
+                var u_mt = new jsfeat.matrix_t(nrows, nrows, dt, u_buff.data);
+                var w_mt = new jsfeat.matrix_t(1, ncols, dt, w_buff.data);
+                var v_mt = new jsfeat.matrix_t(ncols, ncols, dt, v_buff.data);
+
+                var bd = B.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+
+                this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
+
+                tol = jsfeat.EPSILON * wd[0] * ncols;
+
+                for (; i < ncols; i++, pv += ncols) {
+                    xsum = 0.0;
+                    for(j = 0; j < ncols; j++) {
+                        if(wd[j] > tol) {
+                            for(k = 0, sum = 0.0, pu = 0; k < nrows; k++, pu += ncols) {
+                                sum += ud[pu + j] * bd[k];
+                            }
+                            xsum += sum * vd[pv + j] / wd[j];
+                        }
+                    }
+                    X.data[i] = xsum;
+                }
+
+                jsfeat.cache.put_buffer(u_buff);
+                jsfeat.cache.put_buffer(w_buff);
+                jsfeat.cache.put_buffer(v_buff);
+            },
+
+            svd_invert: function(Ai, A) {
+                var i=0,j=0,k=0;
+                var pu=0,pv=0,pa=0;
+                var nrows=A.rows,ncols=A.cols;
+                var sum=0.0,tol=0.0;
+                var dt = A.type | jsfeat.C1_t;
+
+                var u_buff = jsfeat.cache.get_buffer((nrows*nrows)<<3);
+                var w_buff = jsfeat.cache.get_buffer(ncols<<3);
+                var v_buff = jsfeat.cache.get_buffer((ncols*ncols)<<3);
+
+                var u_mt = new jsfeat.matrix_t(nrows, nrows, dt, u_buff.data);
+                var w_mt = new jsfeat.matrix_t(1, ncols, dt, w_buff.data);
+                var v_mt = new jsfeat.matrix_t(ncols, ncols, dt, v_buff.data);
+
+                var id = Ai.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+
+                this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
+
+                tol = jsfeat.EPSILON * wd[0] * ncols;
+
+                for (; i < ncols; i++, pv += ncols) {
+                    for (j = 0, pu = 0; j < nrows; j++, pa++) {
+                        for (k = 0, sum = 0.0; k < ncols; k++, pu++) {
+                            if (wd[k] > tol) sum += vd[pv + k] * ud[pu] / wd[k];
+                        }
+                        id[pa] = sum;
+                    }
+                }
+
+                jsfeat.cache.put_buffer(u_buff);
+                jsfeat.cache.put_buffer(w_buff);
+                jsfeat.cache.put_buffer(v_buff);
+            },
+
+            eigenVV: function(A, vects, vals) {
+                var n=A.cols,i=n*n;
+                var dt = A.type | jsfeat.C1_t;
+
+                var a_buff = jsfeat.cache.get_buffer((n*n)<<3);
+                var w_buff = jsfeat.cache.get_buffer(n<<3);
+                var a_mt = new jsfeat.matrix_t(n, n, dt, a_buff.data);
+                var w_mt = new jsfeat.matrix_t(1, n, dt, w_buff.data);
+
+                while(--i >= 0) {
+                    a_mt.data[i] = A.data[i];
+                }
+
+                JacobiImpl(a_mt.data, n, w_mt.data, vects ? vects.data : null, n, n);
+
+                if(vals) {
+                    while(--n >= 0) {
+                        vals.data[n] = w_mt.data[n];
+                    }
+                }
+
+                jsfeat.cache.put_buffer(a_buff);
+                jsfeat.cache.put_buffer(w_buff);
+            }
+
+        };
+
+    })();
+
+    global.linalg = linalg;
+
+})(jsfeat);
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -1103,63 +2003,63 @@ self.Float32Array = self.Float32Array || Array;
 
             box_blur_gray: function(src, dst, radius, options) {
                 if (typeof options === "undefined") { options = 0; }
-                var w=src.cols, h=src.rows;
-                var i,x,y;
-                var windowSize = radius * 2 + 1;
-                var radiusPlusOne = radius + 1;
+                var w=src.cols, h=src.rows, h2=h<<1, w2=w<<1;
+                var i=0,x=0,y=0,end=0;
+                var windowSize = ((radius << 1) + 1)|0;
+                var radiusPlusOne = (radius + 1)|0, radiusPlus2 = (radiusPlusOne+1)|0;
                 var offset = 8192;
-                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (16384 * (1.0/(windowSize*windowSize)))|0;
+                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (16384 / (windowSize*windowSize) + 0.5)|0;
 
                 var tmp_buff = jsfeat.cache.get_buffer((w*h)<<2);
 
-                var sum, dstIndex, srcIndex = 0, nextPixelIndex, previousPixelIndex;
-                var tmp = tmp_buff.i32; // to prevent overflow
-                var input, output;
-                var hold;
+                var sum=0, dstIndex=0, srcIndex = 0, nextPixelIndex=0, previousPixelIndex=0;
+                var data_i32 = tmp_buff.i32; // to prevent overflow
+                var data_u8 = src.data;
+                var hold=0;
 
                 // first pass
                 // no need to scale 
-                input = src.data;
-                output = tmp;
+                //data_u8 = src.data;
+                //data_i32 = tmp;
                 for (y = 0; y < h; ++y) {
                     dstIndex = y;
-                    sum = radiusPlusOne * input[srcIndex];
+                    sum = radiusPlusOne * data_u8[srcIndex];
 
-                    for(i = 1; i <= radius; ++i) {
-                        sum += input[srcIndex + i];
+                    for(i = (srcIndex+1)|0, end=(srcIndex+radius)|0; i <= end; ++i) {
+                        sum += data_u8[i];
                     }
 
-                    nextPixelIndex = srcIndex + radiusPlusOne;
+                    nextPixelIndex = (srcIndex + radiusPlusOne)|0;
                     previousPixelIndex = srcIndex;
-                    hold = input[previousPixelIndex];
+                    hold = data_u8[previousPixelIndex];
                     for(x = 0; x < radius; ++x, dstIndex += h) {
-                        output[dstIndex] = sum;
-                        sum += input[nextPixelIndex]- hold;
+                        data_i32[dstIndex] = sum;
+                        sum += data_u8[nextPixelIndex]- hold;
                         nextPixelIndex ++;
                     }
-                    for(; x <= w-radiusPlusOne-2; x+=2, dstIndex += h<<1) {
-                        output[dstIndex] = sum;
-                        sum += input[nextPixelIndex]- input[previousPixelIndex];
+                    for(; x < w-radiusPlus2; x+=2, dstIndex += h2) {
+                        data_i32[dstIndex] = sum;
+                        sum += data_u8[nextPixelIndex]- data_u8[previousPixelIndex];
 
-                        output[dstIndex+h] = sum;
-                        sum += input[nextPixelIndex+1]- input[previousPixelIndex+1];
+                        data_i32[dstIndex+h] = sum;
+                        sum += data_u8[nextPixelIndex+1]- data_u8[previousPixelIndex+1];
 
                         nextPixelIndex +=2;
                         previousPixelIndex +=2;
                     }
                     for(; x < w-radiusPlusOne; ++x, dstIndex += h) {
-                        output[dstIndex] = sum;
-                        sum += input[nextPixelIndex]- input[previousPixelIndex];
+                        data_i32[dstIndex] = sum;
+                        sum += data_u8[nextPixelIndex]- data_u8[previousPixelIndex];
 
                         nextPixelIndex ++;
                         previousPixelIndex ++;
                     }
                     
-                    hold = input[nextPixelIndex-1];
+                    hold = data_u8[nextPixelIndex-1];
                     for(; x < w; ++x, dstIndex += h) {
-                        output[dstIndex] = sum;
+                        data_i32[dstIndex] = sum;
 
-                        sum += hold- input[previousPixelIndex];
+                        sum += hold- data_u8[previousPixelIndex];
                         previousPixelIndex ++;
                     }
 
@@ -1168,84 +2068,100 @@ self.Float32Array = self.Float32Array || Array;
                 //
                 // second pass
                 srcIndex = 0;
-                input = tmp; // this is a transpose
-                output = dst.data;
-                for (y = 0; y < w; ++y) {
-                    dstIndex = y;
-                    sum = radiusPlusOne * input[srcIndex];
+                //data_i32 = tmp; // this is a transpose
+                data_u8 = dst.data;
 
-                    for(i = 1; i <= radius; ++i) {
-                        sum += input[srcIndex + i];
-                    }
+                // dont scale result
+                if(scale == 1) {
+                    for (y = 0; y < w; ++y) {
+                        dstIndex = y;
+                        sum = radiusPlusOne * data_i32[srcIndex];
 
-                    nextPixelIndex = srcIndex + radiusPlusOne;
-                    previousPixelIndex = srcIndex;
-                    hold = input[previousPixelIndex];
+                        for(i = (srcIndex+1)|0, end=(srcIndex+radius)|0; i <= end; ++i) {
+                            sum += data_i32[i];
+                        }
 
-                    // dont scale result
-                    if(scale == 1) {
+                        nextPixelIndex = srcIndex + radiusPlusOne;
+                        previousPixelIndex = srcIndex;
+                        hold = data_i32[previousPixelIndex];
+
                         for(x = 0; x < radius; ++x, dstIndex += w) {
-                            output[dstIndex] = sum;
-                            sum += input[nextPixelIndex]- hold;
+                            data_u8[dstIndex] = sum;
+                            sum += data_i32[nextPixelIndex]- hold;
                             nextPixelIndex ++;
                         }
-                        for(; x <= h-radiusPlusOne-2; x+=2, dstIndex += w<<1) {
-                            output[dstIndex] = sum;
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                        for(; x < h-radiusPlus2; x+=2, dstIndex += w2) {
+                            data_u8[dstIndex] = sum;
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
 
-                            output[dstIndex+w] = sum;
-                            sum += input[nextPixelIndex+1]- input[previousPixelIndex+1];
+                            data_u8[dstIndex+w] = sum;
+                            sum += data_i32[nextPixelIndex+1]- data_i32[previousPixelIndex+1];
 
                             nextPixelIndex +=2;
                             previousPixelIndex +=2;
                         }
                         for(; x < h-radiusPlusOne; ++x, dstIndex += w) {
-                            output[dstIndex] = sum;
+                            data_u8[dstIndex] = sum;
 
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
                             nextPixelIndex ++;
                             previousPixelIndex ++;
                         }
-                        hold = input[nextPixelIndex-1];
+                        hold = data_i32[nextPixelIndex-1];
                         for(; x < h; ++x, dstIndex += w) {
-                            output[dstIndex] = sum;
+                            data_u8[dstIndex] = sum;
 
-                            sum += hold- input[previousPixelIndex];
+                            sum += hold- data_i32[previousPixelIndex];
                             previousPixelIndex ++;
                         }
-                    } else {
+
+                        srcIndex += h;
+                    }
+                } else {
+                    for (y = 0; y < w; ++y) {
+                        dstIndex = y;
+                        sum = radiusPlusOne * data_i32[srcIndex];
+
+                        for(i = (srcIndex+1)|0, end=(srcIndex+radius)|0; i <= end; ++i) {
+                            sum += data_i32[i];
+                        }
+
+                        nextPixelIndex = srcIndex + radiusPlusOne;
+                        previousPixelIndex = srcIndex;
+                        hold = data_i32[previousPixelIndex];
+
                         for(x = 0; x < radius; ++x, dstIndex += w) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
-                            sum += input[nextPixelIndex]- hold;
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            sum += data_i32[nextPixelIndex]- hold;
                             nextPixelIndex ++;
                         }
-                        for(; x <= h-radiusPlusOne-2; x+=2, dstIndex += w<<1) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                        for(; x < h-radiusPlus2; x+=2, dstIndex += w2) {
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
 
-                            output[dstIndex+w] = (sum*scale+offset)>>14;
-                            sum += input[nextPixelIndex+1]- input[previousPixelIndex+1];
+                            data_u8[dstIndex+w] = (sum*scale+offset)>>14;
+                            sum += data_i32[nextPixelIndex+1]- data_i32[previousPixelIndex+1];
 
                             nextPixelIndex +=2;
                             previousPixelIndex +=2;
                         }
                         for(; x < h-radiusPlusOne; ++x, dstIndex += w) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
 
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
                             nextPixelIndex ++;
                             previousPixelIndex ++;
                         }
-                        hold = input[nextPixelIndex-1];
+                        hold = data_i32[nextPixelIndex-1];
                         for(; x < h; ++x, dstIndex += w) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
 
-                            sum += hold- input[previousPixelIndex];
+                            sum += hold- data_i32[previousPixelIndex];
                             previousPixelIndex ++;
                         }
-                    }
 
-                    srcIndex += h;
+                        srcIndex += h;
+                    }
                 }
 
                 jsfeat.cache.put_buffer(tmp_buff);
@@ -1443,9 +2359,9 @@ self.Float32Array = self.Float32Array || Array;
             // please note: 
             // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
             compute_integral_image: function(src, dst_sum, dst_sqsum, dst_tilted) {
-                var w0=src.cols,h0=src.rows,src_d=src.data;
-                var w1=w0+1;
-                var s,s2,p,pup,i=0,j=0,v,k;
+                var w0=src.cols|0,h0=src.rows|0,src_d=src.data;
+                var w1=(w0+1)|0;
+                var s=0,s2=0,p=0,pup=0,i=0,j=0,v=0,k=0;
 
                 if(dst_sum && dst_sqsum) {
                     // fill first row with zeros
@@ -2137,6 +3053,512 @@ The references are:
 
 })(jsfeat);
 
+/**
+ * @author Eugene Zatepyakin / http://inspirit.ru/
+ *
+ * Copyright 2007 Computer Vision Lab,
+ * Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
+ * @author Vincent Lepetit (http://cvlab.epfl.ch/~lepetit)
+ */
+
+(function(global) {
+    "use strict";
+    //
+
+    var yape06 = (function() {
+        
+        var compute_laplacian = function(src, dst, w, h, Dxx, Dyy) {
+            var y=0,x=0,yrow=(Dxx*w)|0,row=yrow;
+
+            for(y = Dxx; y < h - Dxx; ++y, yrow+=w, row = yrow) {
+                for(x = w - Dxx; x >= Dxx; --x) {
+                    dst[row] = -4 * src[row] + src[row+Dxx] + src[row-Dxx] + src[row+Dyy] + src[row-Dyy];
+                    ++row;
+                }
+            }
+        }
+
+        var hessian_min_eigen_value = function(src, off, tr, Dxx, Dyy, Dxy, Dyx) {
+            var Ixx = -2 * src[off] + src[off + Dxx] + src[off - Dxx];
+            var Iyy = -2 * src[off] + src[off + Dyy] + src[off - Dyy];
+            var Ixy = src[off + Dxy] + src[off - Dxy] - src[off + Dyx] - src[off - Dyx];
+            var sqrt_delta = ( Math.sqrt(((Ixx - Iyy) * (Ixx - Iyy) + 4 * Ixy * Ixy) ) )|0;
+
+            return Math.min(Math.abs(tr - sqrt_delta), Math.abs(-(tr + sqrt_delta)));
+        }
+
+        return {
+
+            laplacian_threshold: 30,
+            min_eigen_value_threshold: 25,
+
+            detect: function(src, points) {
+                var x=0,y=0;
+                var w=src.cols, h=src.rows, srd_d=src.data;
+                var Dxx = 5, Dyy = (5 * w)|0;
+                var Dxy = (3 + 3 * w)|0, Dyx = (3 - 3 * w)|0;
+                var lap_buf = jsfeat.cache.get_buffer((w*h)<<2);
+                var laplacian = lap_buf.i32;
+                var lv=0, row=0,rowx=0,min_eigen_value=0,pt;
+                var number_of_points = 0;
+                var lap_thresh = this.laplacian_threshold;
+                var eigen_thresh = this.min_eigen_value_threshold;
+
+                x = w*h;
+                while(--x>=0) {laplacian[x]=0;}
+                compute_laplacian(srd_d, laplacian, w, h, Dxx, Dyy);
+
+                row = (w+1)|0;
+                for(y = 1; y < h-1; ++y, row += w) {
+                    for(x = 1, rowx=row; x < w-1; ++x, ++rowx) {
+
+                        lv = laplacian[rowx];
+                        if ((lv < -lap_thresh &&
+                            lv < laplacian[rowx - 1]      && lv < laplacian[rowx + 1] &&
+                            lv < laplacian[rowx - w]     && lv < laplacian[rowx + w] &&
+                            lv < laplacian[rowx - w - 1] && lv < laplacian[rowx + w - 1] &&
+                            lv < laplacian[rowx - w + 1] && lv < laplacian[rowx + w + 1])
+                            ||
+                            (lv > lap_thresh &&
+                            lv > laplacian[rowx - 1]      && lv > laplacian[rowx + 1] &&
+                            lv > laplacian[rowx - w]     && lv > laplacian[rowx + w] &&
+                            lv > laplacian[rowx - w - 1] && lv > laplacian[rowx + w - 1] &&
+                            lv > laplacian[rowx - w + 1] && lv > laplacian[rowx + w + 1])
+                            ) {
+
+                            min_eigen_value = hessian_min_eigen_value(srd_d, rowx, lv, Dxx, Dyy, Dxy, Dyx);
+                            if (min_eigen_value > eigen_thresh) {
+                                pt = points[number_of_points];
+                                pt.x = x, pt.y = y, pt.score = min_eigen_value;
+                                ++number_of_points;
+                                ++x, ++rowx;
+                            }
+                        }
+                    }
+                }
+
+                jsfeat.cache.put_buffer(lap_buf);
+
+                return number_of_points;
+            }
+
+        };
+    })();
+
+    global.yape06 = yape06;
+
+})(jsfeat);
+
+/**
+ * @author Eugene Zatepyakin / http://inspirit.ru/
+ *
+ * Copyright 2007 Computer Vision Lab,
+ * Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
+ */
+
+(function(global) {
+    "use strict";
+    //
+
+    var yape = (function() {
+
+        var precompute_directions = function(step, dirs, R) {
+            var i = 0;
+            var x, y;
+
+            x = R;
+            for(y = 0; y < x; y++, i++)
+            {
+                x = (Math.sqrt((R * R - y * y)) + 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+            for(x-- ; x < y && x >= 0; x--, i++)
+            {
+                y = (Math.sqrt((R * R - x * x)) + 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+            for( ; -x < y; x--, i++)
+            {
+                y = (Math.sqrt((R * R - x * x)) + 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+            for(y-- ; y >= 0; y--, i++)
+            {
+                x = (-Math.sqrt((R * R - y * y)) - 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+            for(; y > x; y--, i++)
+            {
+                x = (-Math.sqrt((R * R - y * y)) - 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+            for(x++ ; x <= 0; x++, i++)
+            {
+                y = (-Math.sqrt((R * R - x * x)) - 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+            for( ; x < -y; x++, i++)
+            {
+                y = (-Math.sqrt((R * R - x * x)) - 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+            for(y++ ; y < 0; y++, i++)
+            {
+                x = (Math.sqrt((R * R - y * y)) + 0.5)|0;
+                dirs[i] = (x + step * y);
+            }
+
+            dirs[i] = dirs[0];
+            dirs[i + 1] = dirs[1];
+            return i;
+        }
+
+        var third_check = function (Sb, off, step) {
+            var n = 0;
+            if(Sb[off+1]   != 0) n++;
+            if(Sb[off-1]   != 0) n++;
+            if(Sb[off+step]   != 0) n++;
+            if(Sb[off+step+1] != 0) n++;
+            if(Sb[off+step-1] != 0) n++;
+            if(Sb[off-step]   != 0) n++;
+            if(Sb[off-step+1] != 0) n++;
+            if(Sb[off-step-1] != 0) n++;
+
+            return n;
+        }
+
+        var is_local_maxima = function(p, off, v, step, neighborhood) {
+            var x, y;
+
+            if (v > 0) {
+                off -= step*neighborhood;
+                for (y= -neighborhood; y<=neighborhood; ++y) {
+                    for (x= -neighborhood; x<=neighborhood; ++x) {
+                        if (p[off+x] > v) return false;
+                    }
+                    off += step;
+                }
+            } else {
+                off -= step*neighborhood;
+                for (y= -neighborhood; y<=neighborhood; ++y) {
+                    for (x= -neighborhood; x<=neighborhood; ++x) {
+                        if (p[off+x] < v) return false;
+                    }
+                    off += step;
+                }
+            }
+            return true;
+        }
+
+        var perform_one_point = function(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb) {
+          var score = 0;
+          var a = 0, b = (opposite - 1)|0;
+          var A=0, B0=0, B1=0, B2=0;
+          var state=0;
+
+          // WE KNOW THAT NOT(A ~ I0 & B1 ~ I0):
+          A = I[x+dirs[a]];
+          if ((A <= Ip)) {
+            if ((A >= Im)) { // A ~ I0
+              B0 = I[x+dirs[b]];
+              if ((B0 <= Ip)) {
+                if ((B0 >= Im)) { Scores[x] = 0; return; }
+                else {
+                  b++; B1 = I[x+dirs[b]];
+                  if ((B1 > Ip)) {
+                    b++; B2 = I[x+dirs[b]];
+                    if ((B2 > Ip)) state = 3;
+                    else if ((B2 < Im)) state = 6;
+                    else { Scores[x] = 0; return; } // A ~ I0, B2 ~ I0
+                  }
+                  else/* if ((B1 < Im))*/ {
+                    b++; B2 = I[x+dirs[b]];
+                    if ((B2 > Ip)) state = 7;
+                    else if ((B2 < Im)) state = 2;
+                    else { Scores[x] = 0; return; } // A ~ I0, B2 ~ I0
+                  }
+                  //else { Scores[x] = 0; return; } // A ~ I0, B1 ~ I0
+                }
+              }
+              else { // B0 < I0
+                b++; B1 = I[x+dirs[b]];
+                if ((B1 > Ip)) {
+                  b++; B2 = I[x+dirs[b]];
+                  if ((B2 > Ip)) state = 3;
+                  else if ((B2 < Im)) state = 6;
+                  else { Scores[x] = 0; return; } // A ~ I0, B2 ~ I0
+                }
+                else if ((B1 < Im)) {
+                  b++; B2 = I[x+dirs[b]];
+                  if ((B2 > Ip)) state = 7;
+                  else if ((B2 < Im)) state = 2;
+                  else { Scores[x] = 0; return; } // A ~ I0, B2 ~ I0
+                }
+                else { Scores[x] = 0; return; } // A ~ I0, B1 ~ I0
+              }
+            }
+            else { // A > I0
+              B0 = I[x+dirs[b]];
+              if ((B0 > Ip)) { Scores[x] = 0; return; }
+                b++; B1 = I[x+dirs[b]];
+              if ((B1 > Ip)) { Scores[x] = 0; return; }
+                b++; B2 = I[x+dirs[b]];
+              if ((B2 > Ip)) { Scores[x] = 0; return; }
+                state = 1;
+            }
+          }
+          else // A < I0
+          {
+            B0 = I[x+dirs[b]];
+            if ((B0 < Im)) { Scores[x] = 0; return; }
+              b++; B1 = I[x+dirs[b]];
+            if ((B1 < Im)) { Scores[x] = 0; return; }
+              b++; B2 = I[x+dirs[b]];
+            if ((B2 < Im)) { Scores[x] = 0; return; }
+              state = 0;
+          }
+
+          for(a = 1; a <= opposite; a++)
+          {
+            A = I[x+dirs[a]];
+
+            switch(state)
+            {
+            case 0:
+              if ((A > Ip)) {
+                B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 < Im)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 0; break; };
+              }
+              if ((A < Im)) {
+                if ((B1 > Ip)) { Scores[x] = 0; return; }
+                  if ((B2 > Ip)) { Scores[x] = 0; return; }
+                    B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 > Ip)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 8; break; };
+              } 
+              // A ~ I0
+              if ((B1 <= Ip)) { Scores[x] = 0; return; }
+                if ((B2 <= Ip)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+              if ((B2 > Ip)) { score -= A + B1; state = 3; break; };
+              if ((B2 < Im)) { score -= A + B1; state = 6; break; };
+              { Scores[x] = 0; return; }
+
+            case 1:
+              if ((A < Im)) {
+                B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 > Ip)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 1; break; };
+              }
+              if ((A > Ip)) {
+                if ((B1 < Im)) { Scores[x] = 0; return; }
+                  if ((B2 < Im)) { Scores[x] = 0; return; }
+                    B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 < Im)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 9; break; };
+              }
+              // A ~ I0
+              if ((B1 >= Im)) { Scores[x] = 0; return; }
+                if ((B2 >= Im)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+              if ((B2 < Im)) { score -= A + B1; state = 2; break; };
+              if ((B2 > Ip)) { score -= A + B1; state = 7; break; };
+              { Scores[x] = 0; return; }
+
+            case 2:
+              if ((A > Ip)) { Scores[x] = 0; return; }
+                B1 = B2; b++; B2 = I[x+dirs[b]];
+              if ((A < Im))
+              {
+                if ((B2 > Ip)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 4; break; };
+              } 
+              // A ~ I0
+              if ((B2 > Ip)) { score -= A + B1; state = 7; break; };
+              if ((B2 < Im)) { score -= A + B1; state = 2; break; };
+              { Scores[x] = 0; return; } // A ~ I0, B2 ~ I0
+
+            case 3:
+              if ((A < Im)) { Scores[x] = 0; return; }
+                B1 = B2; b++; B2 = I[x+dirs[b]];
+              if ((A > Ip)) {
+                if ((B2 < Im)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 5; break; };
+              }
+              // A ~ I0
+              if ((B2 > Ip)) { score -= A + B1; state = 3; break; };
+              if ((B2 < Im)) { score -= A + B1; state = 6; break; };
+              { Scores[x] = 0; return; }
+
+            case 4:
+              if ((A > Ip)) { Scores[x] = 0; return; }
+                if ((A < Im)) {
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+                  if ((B2 > Ip)) { Scores[x] = 0; return; }
+                    { score -= A + B1; state = 1; break; };
+                }
+                if ((B2 >= Im)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 < Im)) { score -= A + B1; state = 2; break; };
+                if ((B2 > Ip)) { score -= A + B1; state = 7; break; };
+                { Scores[x] = 0; return; }
+
+            case 5:
+              if ((A < Im)) { Scores[x] = 0; return; }
+                if ((A > Ip)) {
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+                  if ((B2 < Im)) { Scores[x] = 0; return; }
+                    { score -= A + B1; state = 0; break; };
+                }
+                // A ~ I0
+                if ((B2 <= Ip)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 > Ip)) { score -= A + B1; state = 3; break; };
+                if ((B2 < Im)) { score -= A + B1; state = 6; break; };
+                { Scores[x] = 0; return; }
+
+            case 7:
+              if ((A > Ip)) { Scores[x] = 0; return; }
+                if ((A < Im)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+              // A ~ I0
+              if ((B2 > Ip)) { score -= A + B1; state = 3; break; };
+              if ((B2 < Im)) { score -= A + B1; state = 6; break; };
+              { Scores[x] = 0; return; } // A ~ I0, B2 ~ I0
+
+            case 6:
+              if ((A > Ip)) { Scores[x] = 0; return; }
+                if ((A < Im)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+              // A ~ I0
+              if ((B2 < Im)) { score -= A + B1; state = 2; break; };
+              if ((B2 > Ip)) { score -= A + B1; state = 7; break; };
+              { Scores[x] = 0; return; } // A ~ I0, B2 ~ I0
+
+            case 8:
+              if ((A > Ip)) {
+                if ((B2 < Im)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 < Im)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 9; break; };
+              }
+              if ((A < Im)) {
+                B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 > Ip)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 1; break; };
+              }
+              { Scores[x] = 0; return; }
+
+            case 9:
+              if ((A < Im)) {
+                if ((B2 > Ip)) { Scores[x] = 0; return; }
+                  B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 > Ip)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 8; break; };
+              }
+              if ((A > Ip)) {
+                B1 = B2; b++; B2 = I[x+dirs[b]];
+                if ((B2 < Im)) { Scores[x] = 0; return; }
+                  { score -= A + B1; state = 0; break; };
+              }
+              { Scores[x] = 0; return; }
+
+            default:
+              //"PB default";
+              break;
+            } // switch(state)
+          } // for(a...)
+
+          Scores[x] = (score + dirs_nb * I[x]);
+        }
+
+        var lev_table_t = (function () {
+            function lev_table_t(w, h, r) {
+                this.dirs = new Int32Array(1024);
+                this.dirs_count = precompute_directions(w, this.dirs, r)|0;
+                this.scores = new Int32Array(w*h);
+                this.radius = r|0;
+            }
+            return lev_table_t;
+        })();
+        
+        return {
+
+            level_tables: [],
+            tau: 7,
+
+            init: function(width, height, radius, pyramid_levels) {
+                if (typeof pyramid_levels === "undefined") { pyramid_levels = 1; }
+                var i;
+                radius = Math.min(radius, 7);
+                radius = Math.max(radius, 3);
+                for(i = 0; i < pyramid_levels; ++i) {
+                    this.level_tables[i] = new lev_table_t(width>>i, height>>i, radius);
+                }
+            },
+
+            detect: function(src, points, border) {
+                if (typeof border === "undefined") { border = 4; }
+                var t = this.level_tables[0];
+                var R = t.radius|0, Rm1 = (R-1)|0;
+                var dirs = t.dirs;
+                var dirs_count = t.dirs_count|0;
+                var opposite = dirs_count >> 1;
+                var img = src.data, w=src.cols|0, h=src.rows|0,hw=w>>1;
+                var scores = t.scores;
+                var x=0,y=0,row=0,rowx=0,ip=0,im=0,abs_score=0, score=0;
+                var tau = this.tau|0;
+                var number_of_points = 0, pt;
+
+                var sx = Math.max(R+1, border)|0;
+                var sy = Math.max(R+1, border)|0;
+                var ex = Math.min(w-R-2, w-border)|0;
+                var ey = Math.min(h-R-2, h-border)|0;
+
+                row = (sy*w+sx)|0;
+                for(y = sy; y < ey; ++y, row+=w) {
+                    for(x = sx, rowx = row; x < ex; ++x, ++rowx) {
+                        ip = img[rowx] + tau, im = img[rowx] - tau;
+
+                        if (im<img[rowx+R] && img[rowx+R]<ip && im<img[rowx-R] && img[rowx-R]<ip) {
+                            scores[rowx] = 0;
+                        } else {
+                            perform_one_point(img, rowx, scores, im, ip, dirs, opposite, dirs_count);
+                        }
+                    }
+                }
+
+                // local maxima
+                row = (sy*w+sx)|0;
+                for(y = sy; y < ey; ++y, row+=w) {
+                    for(x = sx, rowx = row; x < ex; ++x, ++rowx) {
+                        score = scores[rowx];
+                        abs_score = Math.abs(score);
+                        if(abs_score < 5) {
+                            // if this pixel is 0, the next one will not be good enough. Skip it.
+                            ++x, ++rowx;
+                        } else {
+                            if(third_check(scores, rowx, w) >= 3 && is_local_maxima(scores, rowx, score, hw, R)) {
+                                pt = points[number_of_points];
+                                pt.x = x, pt.y = y, pt.score = abs_score;
+                                ++number_of_points;
+
+                                x += Rm1, rowx += Rm1;
+                            }
+                        }
+                    }
+                }
+
+                return number_of_points;
+            }
+        };
+
+    })();
+
+    global.yape = yape;
+
+})(jsfeat);
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *

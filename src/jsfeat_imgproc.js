@@ -390,63 +390,63 @@
 
             box_blur_gray: function(src, dst, radius, options) {
                 if (typeof options === "undefined") { options = 0; }
-                var w=src.cols, h=src.rows;
-                var i,x,y;
-                var windowSize = radius * 2 + 1;
-                var radiusPlusOne = radius + 1;
+                var w=src.cols, h=src.rows, h2=h<<1, w2=w<<1;
+                var i=0,x=0,y=0,end=0;
+                var windowSize = ((radius << 1) + 1)|0;
+                var radiusPlusOne = (radius + 1)|0, radiusPlus2 = (radiusPlusOne+1)|0;
                 var offset = 8192;
-                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (16384 * (1.0/(windowSize*windowSize)))|0;
+                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (16384 / (windowSize*windowSize) + 0.5)|0;
 
                 var tmp_buff = jsfeat.cache.get_buffer((w*h)<<2);
 
-                var sum, dstIndex, srcIndex = 0, nextPixelIndex, previousPixelIndex;
-                var tmp = tmp_buff.i32; // to prevent overflow
-                var input, output;
-                var hold;
+                var sum=0, dstIndex=0, srcIndex = 0, nextPixelIndex=0, previousPixelIndex=0;
+                var data_i32 = tmp_buff.i32; // to prevent overflow
+                var data_u8 = src.data;
+                var hold=0;
 
                 // first pass
                 // no need to scale 
-                input = src.data;
-                output = tmp;
+                //data_u8 = src.data;
+                //data_i32 = tmp;
                 for (y = 0; y < h; ++y) {
                     dstIndex = y;
-                    sum = radiusPlusOne * input[srcIndex];
+                    sum = radiusPlusOne * data_u8[srcIndex];
 
-                    for(i = 1; i <= radius; ++i) {
-                        sum += input[srcIndex + i];
+                    for(i = (srcIndex+1)|0, end=(srcIndex+radius)|0; i <= end; ++i) {
+                        sum += data_u8[i];
                     }
 
-                    nextPixelIndex = srcIndex + radiusPlusOne;
+                    nextPixelIndex = (srcIndex + radiusPlusOne)|0;
                     previousPixelIndex = srcIndex;
-                    hold = input[previousPixelIndex];
+                    hold = data_u8[previousPixelIndex];
                     for(x = 0; x < radius; ++x, dstIndex += h) {
-                        output[dstIndex] = sum;
-                        sum += input[nextPixelIndex]- hold;
+                        data_i32[dstIndex] = sum;
+                        sum += data_u8[nextPixelIndex]- hold;
                         nextPixelIndex ++;
                     }
-                    for(; x <= w-radiusPlusOne-2; x+=2, dstIndex += h<<1) {
-                        output[dstIndex] = sum;
-                        sum += input[nextPixelIndex]- input[previousPixelIndex];
+                    for(; x < w-radiusPlus2; x+=2, dstIndex += h2) {
+                        data_i32[dstIndex] = sum;
+                        sum += data_u8[nextPixelIndex]- data_u8[previousPixelIndex];
 
-                        output[dstIndex+h] = sum;
-                        sum += input[nextPixelIndex+1]- input[previousPixelIndex+1];
+                        data_i32[dstIndex+h] = sum;
+                        sum += data_u8[nextPixelIndex+1]- data_u8[previousPixelIndex+1];
 
                         nextPixelIndex +=2;
                         previousPixelIndex +=2;
                     }
                     for(; x < w-radiusPlusOne; ++x, dstIndex += h) {
-                        output[dstIndex] = sum;
-                        sum += input[nextPixelIndex]- input[previousPixelIndex];
+                        data_i32[dstIndex] = sum;
+                        sum += data_u8[nextPixelIndex]- data_u8[previousPixelIndex];
 
                         nextPixelIndex ++;
                         previousPixelIndex ++;
                     }
                     
-                    hold = input[nextPixelIndex-1];
+                    hold = data_u8[nextPixelIndex-1];
                     for(; x < w; ++x, dstIndex += h) {
-                        output[dstIndex] = sum;
+                        data_i32[dstIndex] = sum;
 
-                        sum += hold- input[previousPixelIndex];
+                        sum += hold- data_u8[previousPixelIndex];
                         previousPixelIndex ++;
                     }
 
@@ -455,84 +455,100 @@
                 //
                 // second pass
                 srcIndex = 0;
-                input = tmp; // this is a transpose
-                output = dst.data;
-                for (y = 0; y < w; ++y) {
-                    dstIndex = y;
-                    sum = radiusPlusOne * input[srcIndex];
+                //data_i32 = tmp; // this is a transpose
+                data_u8 = dst.data;
 
-                    for(i = 1; i <= radius; ++i) {
-                        sum += input[srcIndex + i];
-                    }
+                // dont scale result
+                if(scale == 1) {
+                    for (y = 0; y < w; ++y) {
+                        dstIndex = y;
+                        sum = radiusPlusOne * data_i32[srcIndex];
 
-                    nextPixelIndex = srcIndex + radiusPlusOne;
-                    previousPixelIndex = srcIndex;
-                    hold = input[previousPixelIndex];
+                        for(i = (srcIndex+1)|0, end=(srcIndex+radius)|0; i <= end; ++i) {
+                            sum += data_i32[i];
+                        }
 
-                    // dont scale result
-                    if(scale == 1) {
+                        nextPixelIndex = srcIndex + radiusPlusOne;
+                        previousPixelIndex = srcIndex;
+                        hold = data_i32[previousPixelIndex];
+
                         for(x = 0; x < radius; ++x, dstIndex += w) {
-                            output[dstIndex] = sum;
-                            sum += input[nextPixelIndex]- hold;
+                            data_u8[dstIndex] = sum;
+                            sum += data_i32[nextPixelIndex]- hold;
                             nextPixelIndex ++;
                         }
-                        for(; x <= h-radiusPlusOne-2; x+=2, dstIndex += w<<1) {
-                            output[dstIndex] = sum;
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                        for(; x < h-radiusPlus2; x+=2, dstIndex += w2) {
+                            data_u8[dstIndex] = sum;
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
 
-                            output[dstIndex+w] = sum;
-                            sum += input[nextPixelIndex+1]- input[previousPixelIndex+1];
+                            data_u8[dstIndex+w] = sum;
+                            sum += data_i32[nextPixelIndex+1]- data_i32[previousPixelIndex+1];
 
                             nextPixelIndex +=2;
                             previousPixelIndex +=2;
                         }
                         for(; x < h-radiusPlusOne; ++x, dstIndex += w) {
-                            output[dstIndex] = sum;
+                            data_u8[dstIndex] = sum;
 
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
                             nextPixelIndex ++;
                             previousPixelIndex ++;
                         }
-                        hold = input[nextPixelIndex-1];
+                        hold = data_i32[nextPixelIndex-1];
                         for(; x < h; ++x, dstIndex += w) {
-                            output[dstIndex] = sum;
+                            data_u8[dstIndex] = sum;
 
-                            sum += hold- input[previousPixelIndex];
+                            sum += hold- data_i32[previousPixelIndex];
                             previousPixelIndex ++;
                         }
-                    } else {
+
+                        srcIndex += h;
+                    }
+                } else {
+                    for (y = 0; y < w; ++y) {
+                        dstIndex = y;
+                        sum = radiusPlusOne * data_i32[srcIndex];
+
+                        for(i = (srcIndex+1)|0, end=(srcIndex+radius)|0; i <= end; ++i) {
+                            sum += data_i32[i];
+                        }
+
+                        nextPixelIndex = srcIndex + radiusPlusOne;
+                        previousPixelIndex = srcIndex;
+                        hold = data_i32[previousPixelIndex];
+
                         for(x = 0; x < radius; ++x, dstIndex += w) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
-                            sum += input[nextPixelIndex]- hold;
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            sum += data_i32[nextPixelIndex]- hold;
                             nextPixelIndex ++;
                         }
-                        for(; x <= h-radiusPlusOne-2; x+=2, dstIndex += w<<1) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                        for(; x < h-radiusPlus2; x+=2, dstIndex += w2) {
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
 
-                            output[dstIndex+w] = (sum*scale+offset)>>14;
-                            sum += input[nextPixelIndex+1]- input[previousPixelIndex+1];
+                            data_u8[dstIndex+w] = (sum*scale+offset)>>14;
+                            sum += data_i32[nextPixelIndex+1]- data_i32[previousPixelIndex+1];
 
                             nextPixelIndex +=2;
                             previousPixelIndex +=2;
                         }
                         for(; x < h-radiusPlusOne; ++x, dstIndex += w) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
 
-                            sum += input[nextPixelIndex]- input[previousPixelIndex];
+                            sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
                             nextPixelIndex ++;
                             previousPixelIndex ++;
                         }
-                        hold = input[nextPixelIndex-1];
+                        hold = data_i32[nextPixelIndex-1];
                         for(; x < h; ++x, dstIndex += w) {
-                            output[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = (sum*scale+offset)>>14;
 
-                            sum += hold- input[previousPixelIndex];
+                            sum += hold- data_i32[previousPixelIndex];
                             previousPixelIndex ++;
                         }
-                    }
 
-                    srcIndex += h;
+                        srcIndex += h;
+                    }
                 }
 
                 jsfeat.cache.put_buffer(tmp_buff);
@@ -730,9 +746,9 @@
             // please note: 
             // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
             compute_integral_image: function(src, dst_sum, dst_sqsum, dst_tilted) {
-                var w0=src.cols,h0=src.rows,src_d=src.data;
-                var w1=w0+1;
-                var s,s2,p,pup,i=0,j=0,v,k;
+                var w0=src.cols|0,h0=src.rows|0,src_d=src.data;
+                var w1=(w0+1)|0;
+                var s=0,s2=0,p=0,pup=0,i=0,j=0,v=0,k=0;
 
                 if(dst_sum && dst_sqsum) {
                     // fill first row with zeros
