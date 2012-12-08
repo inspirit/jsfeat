@@ -1,20 +1,15 @@
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
- 
+
 (function(lib) {
     "use strict";
 
-    var shim = {};
-    if (typeof(exports) === 'undefined') {
+    if (!module || !module.exports) {
         // in a browser, define its namespaces in global
-        shim.exports = window;
-    } else {    
-        // in commonjs, define its namespaces in exports
-        shim.exports = exports;
-    }
-
-    if(typeof(shim.exports) !== 'undefined') {
-        shim.exports.jsfeat = lib;
+        window.jsfeat = lib;
+    } else {
+        // in commonjs, or when AMD wrapping has been applied, define its namespaces as exports
+        module.exports = lib;
     }
 })(jsfeat);
