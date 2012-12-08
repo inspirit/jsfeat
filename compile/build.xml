@@ -16,6 +16,7 @@
                 <file name="jsfeat_optical_flow_lk.js" />
                 <file name="jsfeat_haar.js" />
                 <file name="jsfeat_bbf.js" />
+                <file name="jsfeat_export.js" />
             </filelist>
         </concat>
     </target>

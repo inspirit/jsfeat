@@ -4,14 +4,6 @@
 
 // namespace ?
 var jsfeat = jsfeat || { REVISION: 'ALPHA' };
-
-// use typed arrays if possible
-self.Int32Array = self.Int32Array || Array;
-self.Uint32Array = self.Uint32Array || Array;
-self.Uint8Array = self.Uint8Array || Array;
-self.Float32Array = self.Float32Array || Array;
-self.Float64Array = self.Float64Array || Array;
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -199,7 +191,6 @@ self.Float64Array = self.Float64Array || Array;
     global.point2d_t = point2d_t;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -279,7 +270,6 @@ self.Float64Array = self.Float64Array || Array;
     cache.allocate(30, 640*4);
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -577,7 +567,6 @@ self.Float64Array = self.Float64Array || Array;
     global.math = math;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -2712,7 +2701,6 @@ self.Float64Array = self.Float64Array || Array;
     global.imgproc = imgproc;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3052,7 +3040,6 @@ The references are:
     fast_corners.set_threshold(20); // set default
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3148,7 +3135,6 @@ The references are:
     global.yape06 = yape06;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3803,7 +3789,6 @@ The references are:
     global.optical_flow_lk = optical_flow_lk;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -4094,7 +4079,6 @@ The references are:
     global.haar = haar;
 
 })(jsfeat);
-
 /**
  * BBF: Brightness Binary Feature
  *
@@ -4489,4 +4473,23 @@ The references are:
     global.bbf = bbf;
 
 })(jsfeat);
+/**
+ * @author Eugene Zatepyakin / http://inspirit.ru/
+ */
+ 
+(function(lib) {
+    "use strict";
 
+    var shim = {};
+    if (typeof(exports) === 'undefined') {
+        // in a browser, define its namespaces in global
+        shim.exports = window;
+    } else {    
+        // in commonjs, define its namespaces in exports
+        shim.exports = exports;
+    }
+
+    if(typeof(shim.exports) !== 'undefined') {
+        shim.exports.jsfeat = lib;
+    }
+})(jsfeat);
