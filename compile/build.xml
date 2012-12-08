@@ -18,6 +18,13 @@
                 <file name="jsfeat_bbf.js" />
             </filelist>
         </concat>
+        <concat destfile="../build/jsfeat_node.js" encoding="UTF-8" outputencoding="UTF-8" fixlastline="true">
+            <filelist id="filelist" dir="..">
+                <file name="compile/jsfeat_node_prefix.js" />
+                <file name="build/jsfeat.js"/>
+                <file name="compile/jsfeat_node_suffix.js" />
+            </filelist>
+        </concat>
     </target>
     <target name="compress" depends="concatenate" description="Compress jsfeat.js to jsfeat-min.js">
         <apply executable="java" parallel="false">

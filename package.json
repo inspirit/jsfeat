@@ -1,0 +1,8 @@
+{
+    "name" : "jsfeat",
+    "version" : "0.0.1",
+    "description" : "",
+    "author" : "Eugene Zatepyakin (http://www.inspirit.ru/)",
+    "files" : "build/jsfeat_node.js",
+    "main" : "build/jsfeat_node"
+}
