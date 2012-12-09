@@ -5,7 +5,7 @@
 (function(lib) {
     "use strict";
 
-    if (!module || !module.exports) {
+    if (typeof module === "undefined" || typeof module.exports === "undefined") {
         // in a browser, define its namespaces in global
         window.jsfeat = lib;
     } else {
