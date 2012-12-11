@@ -25,6 +25,8 @@
                    (r2.width * 1.5 + 0.5)|0 >= r1.width;
         }
 
+        var img_pyr = new jsfeat.pyramid_t(1);
+
         return {
 
             interval: 4,
@@ -51,89 +53,78 @@
                 }
             },
 
-            build_pyramid: function(canvas, min_width, min_height, interval, do_grayscale) {
+            build_pyramid: function(src, min_width, min_height, interval) {
                 if (typeof interval === "undefined") { interval = 4; }
-                if (typeof do_grayscale === "undefined") { do_grayscale = true; }
 
-                // need to convert to grayscale
-                if(do_grayscale) {
-                    var ctx_input = canvas.getContext('2d');
-                    var in_size = canvas.width * canvas.height;
-                    var img_data_input = ctx_input.getImageData(0, 0, canvas.width, canvas.height);
-                    var data_input = img_data_input.data;
-                    var data_u32 = new Uint32Array(data_input.buffer);
-                    var gray_n = jsfeat.cache.get_buffer(in_size);
-                    var gray_data = gray_n.u8;
-                    jsfeat.imgproc.grayscale(data_input, gray_data);
-                    var alpha = (0xff << 24);
-                    var i = in_size,pix=0;
-                    while (--i >= 0) {
-                      pix = gray_data[i];
-                      data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
-                    }
-                    ctx_input.putImageData(img_data_input, 0, 0);
-                    jsfeat.cache.put_buffer(gray_n);
-                }
-                //
+                var sw=src.cols,sh=src.rows;
+                var i=0,nw=0,nh=0;
+                var new_pyr=false;
+                var src0=src,src1=src;
+                var data_type = jsfeat.U8_t | jsfeat.C1_t;
 
                 this.interval = interval;
                 this.scale = Math.pow(2, 1 / (this.interval + 1));
                 this.next = (this.interval + 1)|0;
-                this.scale_to = (Math.log(Math.min(canvas.width / min_width, canvas.height / min_height)) / Math.log(this.scale))|0;
+                this.scale_to = (Math.log(Math.min(sw / min_width, sh / min_height)) / Math.log(this.scale))|0;
 
-                var _canvas = document.createElement('canvas');
-                _canvas.width = canvas.width;
-                _canvas.height = canvas.height;
-                var _ctx = _canvas.getContext('2d');
+                var pyr_l = ((this.scale_to + this.next * 2) * 4) | 0;
+                if(img_pyr.levels != pyr_l) {
+                    img_pyr.levels = pyr_l;
+                    img_pyr.data = new Array(pyr_l);
+                    new_pyr = true;
+                    img_pyr.data[0] = src; // first is src
+                }
 
-                var ret = new Array((this.scale_to + this.next * 2) * 4);
-                ret[0] = { "width" : canvas.width,
-                           "height" : canvas.height,
-                           "data" : canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data };
-                var nw, nh;
                 for (i = 1; i <= this.interval; ++i) {
-                    nw = (canvas.width / Math.pow(this.scale, i))|0;
-                    nh = (canvas.height / Math.pow(this.scale, i))|0;
-                    _ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, nw, nh);
-                    ret[i * 4] = { "width" : nw,
-                                   "height" : nh,
-                                   "data" : _ctx.getImageData(0, 0, nw, nh).data };
+                    nw = (sw / Math.pow(this.scale, i))|0;
+                    nh = (sh / Math.pow(this.scale, i))|0;
+                    src0 = img_pyr.data[i<<2];
+                    if(new_pyr || nw != src0.cols || nh != src0.rows) {
+                        img_pyr.data[i<<2] = new jsfeat.matrix_t(nw, nh, data_type);
+                        src0 = img_pyr.data[i<<2];
+                    }
+                    jsfeat.imgproc.resample(src, src0, nw, nh);
                 }
                 for (i = this.next; i < this.scale_to + this.next * 2; ++i) {
-                    nw = ret[i * 4 - this.next * 4].width >> 1;
-                    nh = ret[i * 4 - this.next * 4].height >> 1;
-                    _ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, nw, nh);
-                    ret[i * 4] = { "width" : nw,
-                                   "height" : nh,
-                                   "data" : _ctx.getImageData(0, 0, nw, nh).data };
+                    src1 = img_pyr.data[(i << 2) - (this.next << 2)];
+                    src0 = img_pyr.data[i<<2];
+                    nw = src1.cols >> 1;
+                    nh = src1.rows >> 1;
+                    if(new_pyr || nw != src0.cols || nh != src0.rows) {
+                        img_pyr.data[i<<2] = new jsfeat.matrix_t(nw, nh, data_type);
+                        src0 = img_pyr.data[i<<2];
+                    }
+                    jsfeat.imgproc.pyrdown(src1, src0);
                 }
                 for (i = this.next * 2; i < this.scale_to + this.next * 2; ++i) {
-                    nw = ret[i * 4 - this.next * 4].width >> 1;
-                    nh = ret[i * 4 - this.next * 4].height >> 1;
-
-                    _ctx.drawImage(canvas, 1, 0, canvas.width-1, canvas.height, 0, 0, nw-2, nh);
-
-                    ret[i * 4 + 1] = { "width" : nw,
-                                       "height" : nh,
-                                       "data" : _ctx.getImageData(0, 0, nw, nh).data };
-
-                    _ctx.drawImage(canvas, 0, 1, canvas.width, canvas.height-1, 0, 0, nw, nh-2);
-
-                    ret[i * 4 + 2] = { "width" : nw,
-                                       "height" : nh,
-                                       "data" : _ctx.getImageData(0, 0, nw, nh).data };
-
-                    _ctx.drawImage(canvas, 1, 1, canvas.width-1, canvas.height-1, 0, 0, nw-2, nh-2);
-
-                    ret[i * 4 + 3] = { "width" : nw,
-                                       "height" : nh,
-                                       "data" : _ctx.getImageData(0, 0, nw, nh).data };
+                    src1 = img_pyr.data[(i << 2) - (this.next << 2)];
+                    nw = src1.cols >> 1;
+                    nh = src1.rows >> 1;
+                    src0 = img_pyr.data[(i<<2)+1];
+                    if(new_pyr || nw != src0.cols || nh != src0.rows) {
+                        img_pyr.data[(i<<2)+1] = new jsfeat.matrix_t(nw, nh, data_type);
+                        src0 = img_pyr.data[(i<<2)+1];
+                    }
+                    jsfeat.imgproc.pyrdown(src1, src0, 1, 0);
+                    //
+                    src0 = img_pyr.data[(i<<2)+2];
+                    if(new_pyr || nw != src0.cols || nh != src0.rows) {
+                        img_pyr.data[(i<<2)+2] = new jsfeat.matrix_t(nw, nh, data_type);
+                        src0 = img_pyr.data[(i<<2)+2];
+                    }
+                    jsfeat.imgproc.pyrdown(src1, src0, 0, 1);
+                    //
+                    src0 = img_pyr.data[(i<<2)+3];
+                    if(new_pyr || nw != src0.cols || nh != src0.rows) {
+                        img_pyr.data[(i<<2)+3] = new jsfeat.matrix_t(nw, nh, data_type);
+                        src0 = img_pyr.data[(i<<2)+3];
+                    }
+                    jsfeat.imgproc.pyrdown(src1, src0, 1, 1);
                 }
-
-                return ret;
+                return img_pyr;
             },
 
-            detect: function(pyr, cascade) {
+            detect: function(pyramid, cascade) {
                 var interval = this.interval;
                 var scale = this.scale;
                 var next = this.next;
@@ -144,6 +135,7 @@
                 var dx = [0, 1, 0, 1];
                 var dy = [0, 0, 1, 1];
                 var seq = [];
+                var pyr=pyramid.data, bpp = 1, bpp2 = 2, bpp4 = 4;
 
                 var u8 = [], u8o = [0,0,0];
                 var step = [0,0,0];
@@ -151,12 +143,14 @@
 
                 for (i = 0; i < scale_upto; i++) {
                     i4 = (i<<2);
-                    qw = pyr[i4 + (next << 3)].width - (cascade.width >> 2);
-                    qh = pyr[i4 + (next << 3)].height - (cascade.height >> 2);
-                    step[0] = pyr[i4].width << 2; step[1] = pyr[i4 + (next << 2)].width << 2; step[2] = pyr[i4 + (next << 3)].width << 2;
-                    paddings[0] = (pyr[i4].width << 4) - (qw << 4);
-                    paddings[1] = (pyr[i4 + (next << 2)].width << 3) - (qw << 3);
-                    paddings[2] = (pyr[i4 + (next << 3)].width << 2) - (qw << 2);
+                    qw = pyr[i4 + (next << 3)].cols - (cascade.width >> 2);
+                    qh = pyr[i4 + (next << 3)].rows - (cascade.height >> 2);
+                    step[0] = pyr[i4].cols * bpp;
+                    step[1] = pyr[i4 + (next << 2)].cols * bpp;
+                    step[2] = pyr[i4 + (next << 3)].cols * bpp;
+                    paddings[0] = (pyr[i4].cols * bpp4) - (qw * bpp4);
+                    paddings[1] = (pyr[i4 + (next << 2)].cols * bpp2) - (qw * bpp2);
+                    paddings[2] = (pyr[i4 + (next << 3)].cols * bpp) - (qw * bpp);
                     sn = cascade.stage_classifier.length;
                     for (j = 0; j < sn; j++) {
                         orig_feature = cascade.stage_classifier[j].feature;
@@ -167,9 +161,9 @@
                             feature_o = orig_feature[k];
                             q_cnt = feature_o.size|0;
                             for (q = 0; q < q_cnt; q++) {
-                                feature_k.px[q] = (feature_o.px[q] << 2) + feature_o.py[q] * step[feature_o.pz[q]];
+                                feature_k.px[q] = (feature_o.px[q] * bpp) + feature_o.py[q] * step[feature_o.pz[q]];
                                 feature_k.pz[q] = feature_o.pz[q];
-                                feature_k.nx[q] = (feature_o.nx[q] << 2) + feature_o.ny[q] * step[feature_o.nz[q]];
+                                feature_k.nx[q] = (feature_o.nx[q] * bpp) + feature_o.ny[q] * step[feature_o.nz[q]];
                                 feature_k.nz[q] = feature_o.nz[q];
                             }
                         }
@@ -177,7 +171,9 @@
                     u8[0] = pyr[i4].data; u8[1] = pyr[i4 + (next<<2)].data;
                     for (q = 0; q < 4; q++) {
                         u8[2] = pyr[i4 + (next<<3) + q].data;
-                        u8o[0] = (dx[q]<<3) + dy[q] * (pyr[i4].width<<3); u8o[1] = (dx[q]<<2) + dy[q] * (pyr[i4 + (next<<2)].width<<2); u8o[2]=0;
+                        u8o[0] = (dx[q]*bpp2) + dy[q] * (pyr[i4].cols*bpp2); 
+                        u8o[1] = (dx[q]*bpp) + dy[q] * (pyr[i4 + (next<<2)].cols*bpp); 
+                        u8o[2] = 0;
                         for (y = 0; y < qh; y++) {
                             for (x = 0; x < qw; x++) {
                                 sum = 0;
@@ -234,10 +230,14 @@
                                               "height" : cascade.height * scale_y,
                                               "neighbor" : 1,
                                               "confidence" : sum});
+                                    ++x;
+                                    u8o[0] += bpp4;
+                                    u8o[1] += bpp2;
+                                    u8o[2] += bpp;
                                 }
-                                u8o[0] += 16;
-                                u8o[1] += 8;
-                                u8o[2] += 4;
+                                u8o[0] += bpp4;
+                                u8o[1] += bpp2;
+                                u8o[2] += bpp;
                             }
                             u8o[0] += paddings[0];
                             u8o[1] += paddings[1];

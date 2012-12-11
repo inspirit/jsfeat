@@ -590,25 +590,32 @@
                 jsfeat.cache.put_buffer(filt_node);
             },
             // assume we always need it for u8 image
-            pyrdown: function(src, dst) {
+            pyrdown: function(src, dst, sx, sy) {
+                // this is needed for bbf
+                if (typeof sx === "undefined") { sx = 0; }
+                if (typeof sy === "undefined") { sy = 0; }
+
                 var w = src.cols, h = src.rows;
                 var w2 = w >> 1, h2 = h >> 1;
-                var x=0,y=0,sptr=0,sline=0,dptr=0;
+                var _w2 = w2 - (sx << 1), _h2 = h2 - (sy << 1);
+                var x=0,y=0,sptr=sx+sy*w,sline=0,dptr=0,dline=0;
                 var src_d = src.data, dst_d = dst.data;
 
-                for(y = 0; y < h2; ++y) {
+                for(y = 0; y < _h2; ++y) {
                     sline = sptr;
-                    for(x = 0; x <= w2-2; x+=2, dptr+=2, sline += 4) {
-                        dst_d[dptr] = (src_d[sline] + src_d[sline+1] +
+                    dline = dptr;
+                    for(x = 0; x <= _w2-2; x+=2, dline+=2, sline += 4) {
+                        dst_d[dline] = (src_d[sline] + src_d[sline+1] +
                                             src_d[sline+w] + src_d[sline+w+1] + 2) >> 2;
-                        dst_d[dptr+1] = (src_d[sline+2] + src_d[sline+3] +
+                        dst_d[dline+1] = (src_d[sline+2] + src_d[sline+3] +
                                             src_d[sline+w+2] + src_d[sline+w+3] + 2) >> 2;
                     }
-                    for(; x < w2; ++x, ++dptr, sline += 2) {
-                        dst_d[dptr] = (src_d[sline] + src_d[sline+1] +
+                    for(; x < _w2; ++x, ++dline, sline += 2) {
+                        dst_d[dline] = (src_d[sline] + src_d[sline+1] +
                                             src_d[sline+w] + src_d[sline+w+1] + 2) >> 2;
                     }
                     sptr += w << 1;
+                    dptr += w2;
                 }
             },
 
