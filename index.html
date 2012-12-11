@@ -558,24 +558,22 @@ jsfeat.bbf.prepare_cascade(cascade);
 /*
 Build image pyramid using canvas drawImage
 
-canvas            - source canvas
+src               - source grayscale matrix_t (U8_t|C1_t)
 min_width         - minimum width to scale pyramid to
 min_height        - minimum height to scale pyramid to
 interval          - number of original scale levels in pyramid
-do_grayscale      - specify if canvas data should be grayscaled
-                    if you already converted it to grayscale set false
 */
-var img_pyramid:Array = jsfeat.bbf.build_pyramid(canvas, 
+var img_pyramid:pyramid_t = jsfeat.bbf.build_pyramid(src, 
                                                  min_width, min_height, 
-                                                 interval = 4, do_grayscale = true);
+                                                 interval = 4);
 
 /*
 Run detection
 
-img_pyramid    - image pyramid Array from build_pyramid method
+img_pyramid    - pyramid_t from build_pyramid method
 cascade        - cascade data
 */
-var rects:Array = jsfeat.bbf.detect(img_pyramid:Array, cascade);
+var rects:Array = jsfeat.bbf.detect(img_pyramid:pyramid_t, cascade);
 
 /*
 Groups the object candidate rectangles
