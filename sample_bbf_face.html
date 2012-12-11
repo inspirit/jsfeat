@@ -119,19 +119,9 @@
 
                     // possible options
                     //jsfeat.imgproc.equalize_histogram(img_u8, img_u8);
-
-                    var data_u32 = new Uint32Array(imageData.data.buffer);
-                    var alpha = (0xff << 24);
-                    var i = img_u8.cols*img_u8.rows, pix = 0;
-                    while(--i >= 0) {
-                        pix = img_u8.data[i];
-                        data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
-                    }
-
-                    // draw back to canvas
-                    work_ctx.putImageData(imageData, 0, 0);
                     
-                    var pyr = jsfeat.bbf.build_pyramid(work_canvas, 24*2, 24*2, 4, false);
+                    var pyr = jsfeat.bbf.build_pyramid(img_u8, 24*2, 24*2, 4);
+
                     var rects = jsfeat.bbf.detect(pyr, jsfeat.bbf.face_cascade);
                     rects = jsfeat.bbf.group_rectangles(rects, 1);
 
