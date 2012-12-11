@@ -1,6 +1,6 @@
 {
     "name" : "jsfeat",
-    "version" : "0.0.3",
+    "version" : "0.0.4",
     "description" : "JavaScript Computer Vision library",
     "author" : "Eugene Zatepyakin (http://www.inspirit.ru/)",
     "files" : "build/jsfeat.js",
