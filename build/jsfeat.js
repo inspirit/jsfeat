@@ -4290,7 +4290,7 @@ The references are:
                                         } else {
                                             shortcut = true;
                                             q_cnt = feature_k.size;
-                                            for (f = 0; f < q_cnt; f++) {
+                                            for (f = 1; f < q_cnt; f++) {
                                                 if (feature_k.pz[f] >= 0) {
                                                     p = u8[feature_k.pz[f]][u8o[feature_k.pz[f]] + feature_k.px[f]];
                                                     if (p < pmin) {
