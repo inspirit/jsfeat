@@ -9,7 +9,7 @@
     var imgproc = (function() {
 
         var _resample_u8 = function(src, dst, nw, nh) {
-            var xofs = [],xofs_count=0;
+            var xofs_count=0;
             var ch=src.channel,w=src.cols,h=src.rows;
             var src_d=src.data,dst_d=dst.data;
             var scale_x = w / nw, scale_y = h / nh;
@@ -19,9 +19,11 @@
 
             var buf_node = jsfeat.cache.get_buffer((nw*ch)<<2);
             var sum_node = jsfeat.cache.get_buffer((nw*ch)<<2);
+            var xofs_node = jsfeat.cache.get_buffer((w*2*3)<<2);
 
             var buf = buf_node.i32;
             var sum = sum_node.i32;
+            var xofs = xofs_node.i32;
 
             for (; dx < nw; dx++) {
                 fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
@@ -30,19 +32,22 @@
                 sx2 = Math.min(sx2, w - 1);
 
                 if(sx1 > fsx1) {
-                    xofs[xofs_count++] = {"si": ((sx1 - 1)*ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": ((sx1 - fsx1) * 0x100)|0};
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = ((sx1 - 1)*ch)|0; 
+                    xofs[k++] = ((sx1 - fsx1) * 0x100)|0;
+                    xofs_count++;
                 }
                 for(sx = sx1; sx < sx2; sx++){
-                    xofs[xofs_count++] = {"si": (sx * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": 256};
+                    xofs_count++;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (sx * ch)|0;
+                    xofs[k++] = 256;
                 }
                 if(fsx2 - sx2 > 1e-3) {
-                    xofs[xofs_count++] = {"si": (sx2 * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": ((fsx2 - sx2) * 256)|0};
+                    xofs_count++;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (sx2 * ch)|0;
+                    xofs[k++] = ((fsx2 - sx2) * 256)|0;
                 }
             }
 
@@ -53,9 +58,9 @@
             for (sy = 0; sy < h; sy++) {
                 a = w * sy;
                 for (k = 0; k < xofs_count; k++) {
-                    dxn = xofs[k].di;
-                    alpha = xofs[k].alpha;
-                    sx1 = xofs[k].si;
+                    dxn = xofs[k*3];
+                    sx1 = xofs[k*3+1];
+                    alpha = xofs[k*3+2];
                     for (i = 0; i < ch; i++) {
                         buf[dxn + i] += src_d[a+sx1+i] * alpha;
                     }
@@ -87,10 +92,11 @@
 
             jsfeat.cache.put_buffer(sum_node);
             jsfeat.cache.put_buffer(buf_node);
+            jsfeat.cache.put_buffer(xofs_node);
         }
 
         var _resample = function(src, dst, nw, nh) {
-            var xofs = [],xofs_count=0;
+            var xofs_count=0;
             var ch=src.channel,w=src.cols,h=src.rows;
             var src_d=src.data,dst_d=dst.data;
             var scale_x = w / nw, scale_y = h / nh;
@@ -100,9 +106,11 @@
 
             var buf_node = jsfeat.cache.get_buffer((nw*ch)<<2);
             var sum_node = jsfeat.cache.get_buffer((nw*ch)<<2);
+            var xofs_node = jsfeat.cache.get_buffer((w*2*3)<<2);
 
             var buf = buf_node.f32;
             var sum = sum_node.f32;
+            var xofs = xofs_node.f32;
 
             for (; dx < nw; dx++) {
                 fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
@@ -111,19 +119,22 @@
                 sx2 = Math.min(sx2, w - 1);
 
                 if(sx1 > fsx1) {
-                    xofs[xofs_count++] = {"si": ((sx1 - 1)*ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": (sx1 - fsx1) * scale};
+                    xofs_count++;
+                    xofs[k++] = ((sx1 - 1)*ch)|0;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (sx1 - fsx1) * scale;
                 }
                 for(sx = sx1; sx < sx2; sx++){
-                    xofs[xofs_count++] = {"si": (sx * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": scale};
+                    xofs_count++;
+                    xofs[k++] = (sx * ch)|0;
+                    xofs[k++] = (dx * ch)|0; 
+                    xofs[k++] = scale;
                 }
                 if(fsx2 - sx2 > 1e-3) {
-                    xofs[xofs_count++] = {"si": (sx2 * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": (fsx2 - sx2) * scale};
+                    xofs_count++;
+                    xofs[k++] = (sx2 * ch)|0;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (fsx2 - sx2) * scale;
                 }
             }
 
@@ -134,9 +145,9 @@
             for (sy = 0; sy < h; sy++) {
                 a = w * sy;
                 for (k = 0; k < xofs_count; k++) {
-                    dxn = xofs[k].di;
-                    alpha = xofs[k].alpha;
-                    sx1 = xofs[k].si;
+                    sx1 = xofs[k*3]|0;
+                    dxn = xofs[k*3+1]|0;
+                    alpha = xofs[k*3+2];
                     for (i = 0; i < ch; i++) {
                         buf[dxn + i] += src_d[a+sx1+i] * alpha;
                     }
@@ -167,6 +178,7 @@
             }
             jsfeat.cache.put_buffer(sum_node);
             jsfeat.cache.put_buffer(buf_node);
+            jsfeat.cache.put_buffer(xofs_node);
         }
 
         var _convol_u8 = function(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel) {
@@ -1038,15 +1050,16 @@
                 jsfeat.cache.put_buffer(map_node);
                 jsfeat.cache.put_buffer(stack_node);
             },
-
+            // transform is 3x3 matrix_t
             warp_perspective: function(src, dst, transform, fill_value) {
                 if (typeof fill_value === "undefined") { fill_value = 0; }
                 var src_width=src.cols, src_height=src.rows, dst_width=dst.cols, dst_height=dst.rows;
                 var src_d=src.data, dst_d=dst.data;
                 var x=0,y=0,off=0,ixs=0,iys=0,xs=0.0,ys=0.0,xs0=0.0,ys0=0.0,ws=0.0,sc=0.0,a=0.0,b=0.0,p0=0.0,p1=0.0;
-                var m00=transform[0],m01=transform[1],m02=transform[2],
-                    m10=transform[3],m11=transform[4],m12=transform[5],
-                    m20=transform[6],m21=transform[7],m22=transform[8];
+                var td=transform.data;
+                var m00=td[0],m01=td[1],m02=td[2],
+                    m10=td[3],m11=td[4],m12=td[5],
+                    m20=td[6],m21=td[7],m22=td[8];
 
                 for(var dptr = 0; y < dst_height; ++y) {
                     xs0 = m01 * y + m02,
@@ -1071,14 +1084,15 @@
                     }
                 }
             },
-
+            // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
             warp_affine: function(src, dst, transform, fill_value) {
                 if (typeof fill_value === "undefined") { fill_value = 0; }
                 var src_width=src.cols, src_height=src.rows, dst_width=dst.cols, dst_height=dst.rows;
                 var src_d=src.data, dst_d=dst.data;
                 var x=0,y=0,off=0,ixs=0,iys=0,xs=0.0,ys=0.0,a=0.0,b=0.0,p0=0.0,p1=0.0;
-                var m00=transform[0],m01=transform[1],m02=transform[2],
-                    m10=transform[3],m11=transform[4],m12=transform[5];
+                var td=transform.data;
+                var m00=td[0],m01=td[1],m02=td[2],
+                    m10=td[3],m11=td[4],m12=td[5];
 
                 for(var dptr = 0; y < dst_height; ++y) {
                     xs = m01 * y + m02;

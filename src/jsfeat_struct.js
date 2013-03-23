@@ -75,29 +75,44 @@
             this.cols = c|0;
             this.rows = r|0;
             if (typeof data_buffer === "undefined") { 
-                this.buffer = new data_t((c * get_data_type_size(data_type) * get_channel(data_type)) * r);
+                this.allocate();
             } else {
                 this.buffer = data_buffer;
+                // data user asked for
+                this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
             }
-            // data user asked for
-            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
-        matrix_t.prototype.set_data_type = function(data_type) {
-            this.type = get_data_type(data_type)|0;
-            this.channel = get_channel(data_type)|0;
+        matrix_t.prototype.allocate = function() {
             // clear references
             delete this.data;
             delete this.buffer;
             //
-            this.buffer = new data_t((this.cols * get_data_type_size(data_type) * get_channel(data_type)) * this.rows);
+            this.buffer = new data_t((this.cols * get_data_type_size(this.type) * this.channel) * this.rows);
             this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
-        matrix_t.prototype.set_data = function(array) {
-            var i = array.length;
+        matrix_t.prototype.copy_to = function(other) {
+            var od = other.data;
+            var i = this.cols*this.rows*this.channel;
             while(--i >= 0) {
-                this.data[i] = array[i];
+                od[i] = this.data[i];
             }
         }
+        matrix_t.prototype.resize = function(c, r, ch) {
+            if (typeof ch === "undefined") { ch = this.channel; }
+            // change buffer only if new size doesnt fit
+            var new_size = (c * ch) * r;
+            if(new_size > this.rows*this.cols*this.channel) {
+                this.cols = c;
+                this.rows = r;
+                this.channel = ch;
+                this.allocate();
+            } else {
+                this.cols = c;
+                this.rows = r;
+                this.channel = ch;
+            }
+        }
+
         return matrix_t;
     })();
 

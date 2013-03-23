@@ -183,7 +183,7 @@
         }
 
         var JacobiSVDImpl = function(At, astep, _W, Vt, vstep, m, n, n1) {
-            var eps = jsfeat.EPSILON * 10.0;
+            var eps = jsfeat.EPSILON * 2.0;
             var minval = jsfeat.FLT_MIN;
             var i=0,j=0,k=0,iter=0,max_iter=Math.max(m, 30);
             var Ai=0,Aj=0,Vi=0,Vj=0,changed=0;
@@ -218,10 +218,9 @@
                         Ai = (i*astep)|0, Aj = (j*astep)|0;
                         a = W[i], p = 0, b = W[j];
                         
-                        k = 3;
+                        k = 2;
                         p += At[Ai]*At[Aj];
                         p += At[Ai+1]*At[Aj+1];
-                        p += At[Ai+2]*At[Aj+2];
 
                         for(; k < m; k++)
                             p += At[Ai+k]*At[Aj+k];
@@ -244,7 +243,7 @@
                         W[j] -= delta;
                         
                         if( (iter & 1) && W[i] > 0 && W[j] > 0 ) {
-                            k = 3;//unroll 3x3
+                            k = 2;//unroll 2x2
                             t0 = c*At[Ai] + s*At[Aj];
                             t1 = -s*At[Ai] + c*At[Aj];
                             At[Ai] = t0; At[Aj] = t1;
@@ -252,10 +251,6 @@
                             t0 = c*At[Ai+1] + s*At[Aj+1];
                             t1 = -s*At[Ai+1] + c*At[Aj+1];
                             At[Ai+1] = t0; At[Aj+1] = t1;
-
-                            t0 = c*At[Ai+2] + s*At[Aj+2];
-                            t1 = -s*At[Ai+2] + c*At[Aj+2];
-                            At[Ai+2] = t0; At[Aj+2] = t1;
 
                             for(; k < m; k++) {
                                 t0 = c*At[Ai+k] + s*At[Aj+k];
@@ -264,7 +259,7 @@
                             }
                         } else {
                             a = b = 0;
-                            k = 3; // unroll
+                            k = 2; // unroll
                             t0 = c*At[Ai] + s*At[Aj];
                             t1 = -s*At[Ai] + c*At[Aj];
                             At[Ai] = t0; At[Aj] = t1;
@@ -273,11 +268,6 @@
                             t0 = c*At[Ai+1] + s*At[Aj+1];
                             t1 = -s*At[Ai+1] + c*At[Aj+1];
                             At[Ai+1] = t0; At[Aj+1] = t1;
-                            a += t0*t0; b += t1*t1;
-
-                            t0 = c*At[Ai+2] + s*At[Aj+2];
-                            t1 = -s*At[Ai+2] + c*At[Aj+2];
-                            At[Ai+2] = t0; At[Aj+2] = t1;
                             a += t0*t0; b += t1*t1;
 
                             for( ; k < m; k++ )
@@ -296,7 +286,7 @@
                         if(Vt) {
                             Vi = (i*vstep)|0, Vj = (j*vstep)|0;
 
-                            k = 3;
+                            k = 2;
                             t0 = c*Vt[Vi] + s*Vt[Vj];
                             t1 = -s*Vt[Vi] + c*Vt[Vj];
                             Vt[Vi] = t0; Vt[Vj] = t1;
@@ -304,10 +294,6 @@
                             t0 = c*Vt[Vi+1] + s*Vt[Vj+1];
                             t1 = -s*Vt[Vi+1] + c*Vt[Vj+1];
                             Vt[Vi+1] = t0; Vt[Vj+1] = t1;
-
-                            t0 = c*Vt[Vi+2] + s*Vt[Vj+2];
-                            t1 = -s*Vt[Vi+2] + c*Vt[Vj+2];
-                            Vt[Vi+2] = t0; Vt[Vj+2] = t1;
 
                             for(; k < n; k++) {
                                 t0 = c*Vt[Vi+k] + s*Vt[Vj+k];
