@@ -44,7 +44,7 @@
                         <li><a href="#math"><i class="icon-chevron-right"></i> Math</a></li>
                         <li><a href="#matmath"><i class="icon-chevron-right"></i> Matrix Math</a></li>
                         <li><a href="#linalg"><i class="icon-chevron-right"></i> Linear Algebra</a></li>
-                        <li><a href="#transform"><i class="icon-chevron-right"></i> Transform</a></li>
+                        <li><a href="#multiview"><i class="icon-chevron-right"></i> Multiview</a></li>
                         <li><a href="#imgproc"><i class="icon-chevron-right"></i> Image processing</a></li>
                         <li><a href="#features2d"><i class="icon-chevron-right"></i> Features 2D</a></li>
                         <li><a href="#opticalflowlk"><i class="icon-chevron-right"></i> Lukas Kanade optical flow</a></li>
@@ -80,9 +80,9 @@ var my_matrix = new jsfeat.matrix_t(columns, rows, data_type);
 // if(my_matrix.type & jsfeat.U8_t) ...
 // my_matrix.channel = 1/2/3/4
 </pre>
-                        <p>You can change <code>matrix_t</code> <code>data_type</code> at any time using <code>set_data_type</code> method. <span class="label label-important">NOTE:</span> this operation will delete current data array.</p>
+                        <p>You can resize <code>matrix_t</code> at any time using <code>resize</code> method. <span class="label label-important">NOTE:</span> this operation will delete current data array if new size is larger.</p>
 <pre class="prettyprint linenums">
-my_matrix.set_data_type(jsfeat.F32_t | jsfeat.C3_t);
+my_matrix.resize(new_cols, new_rows, new_channels);
 </pre>
                         <p>You also can access <code>matrix_t</code> <code>buffer</code> property that is a wrapper for <code>data</code> and implemented with <code>data_t</code> structure.</p>
                         <h4>data_t</h4>
@@ -126,7 +126,15 @@ my_pyramid.build(source_matrix_t, skip_first_level = true);
 // all arguments are zero by default
 var my_point = new jsfeat.point2d_t(x = 0, y = 0, score = 0, level = 0);
 </pre>
-                        <p>I guess we will need different data type points later with floating-point coordinates for example.</p>
+                        <h4>ransac_params_t</h4>
+                        <p>Used for <code>ransac</code> based motion estimator.</p>
+<pre class="prettyprint linenums">
+var model_size = 4; // minimum points to estimate motion
+var thresh = 3; // max error to classify as inlier
+var eps = 0.5; // max outliers ratio
+var prob = 0.99; // probability of success
+var params = new jsfeat.ransac_params_t(model_size, thresh, eps, prob);
+</pre>
                     </section>
                     <section id="cachepool">
                         <h2>Cache pool</h2>
@@ -192,6 +200,14 @@ jsfeat.math.qsort(point_arr, 0, point_arr.length-1, cmp_points);
 var arr = [10,2,1,0,0,4,6,1,3,8,5,3];
 var median = jsfeat.math.median(arr, 0, arr.length-1);
 </pre>
+                        <h4>perspective_4point_transform</h4>
+                        <p>Calculates the perspective transform from 4 pairs of the corresponding points. The function calculates the <code>3x3 Matrix</code></p>
+<pre class="prettyprint linenums">
+jsfeat.transform.perspective_4point_transform(mat:matrix_t, src_x0, src_y0, dst_x0, dst_y0,
+                                                        src_x1, src_y1, dst_x1, dst_y1,
+                                                        src_x2, src_y2, dst_x2, dst_y2,
+                                                        src_x3, src_y3, dst_x3, dst_y3);
+</pre>
                     </section>
                     <section id="matmath">
                         <h2>Matrix Math</h2>
@@ -225,6 +241,21 @@ jsfeat.matmath.multiply_AAt(C:matrix_t, A:matrix_t);
                         <p>Pre multiply an <code>nrows x ncols</code> matrix <code>A</code> by its transpose. The result is an <code>ncols x ncols</code> square symmetric matrix <code>C</code>, i.e. <code>C = A'*A</code>.</p>
 <pre class="prettyprint linenums">
 jsfeat.matmath.multiply_AtA(C:matrix_t, A:matrix_t);
+</pre>
+                        <h4>invert_3x3</h4>
+                        <p>Quick inverse of 3x3 matrix. Can operate inplace.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.invert_3x3(from:matrix_t, to:matrix_t);
+</pre>
+                        <h4>multiply_3x3</h4>
+                        <p>Quick 3x3 matrix multiplication. Can operate inplace.</p>
+<pre class="prettyprint linenums">
+jsfeat.matmath.multiply_3x3(C:matrix_t, A:matrix_t, B:matrix_t);
+</pre>
+                        <h4>mat3x3_determinant</h4>
+                        <p>Calculate 3x3 matrix determinant.</p>
+<pre class="prettyprint linenums">
+var determinant = jsfeat.matmath.mat3x3_determinant(M:matrix_t);
 </pre>
                     </section>
                     <section id="linalg">
@@ -273,33 +304,124 @@ jsfeat.linalg.eigenVV(A:matrix_t, null, EigenValues:matrix_t);
 jsfeat.linalg.eigenVV(A:matrix_t, EigenVectors:matrix_t, null);
 </pre>
                     </section>
-                    <section id="transform">
-                        <h2>Transform</h2>
-                        <p>The functions in this module estimate various geometrical transformations of 2D images.</p>
-                        <h4>affine_3point_transform</h4>
-                        <p>Calculates the affine transform from 3 pairs of the corresponding points. The function calculates the <code>2x3 Matrix</code></p>
+                    <section id="multiview">
+                        <h2>Multiview</h2>
+                        <p>The functions in this module estimate various geometrical transformations between two point sets.</p>
+                        <h4>affine2d</h4>
+                        <p>This kernel calculates the affine transform from corresponding points. The function calculates the <code>3x3 Matrix</code></p>
 <pre class="prettyprint linenums">
-jsfeat.transform.affine_3point_transform(mat:Array, src_x0, src_y0, dst_x0, dst_y0,
-                                                    src_x1, src_y1, dst_x1, dst_y1,
-                                                    src_x2, src_y2, dst_x2, dst_y2);
+// create affine kernel
+// you can reuse it for different point sets
+var affine_kernel = new jsfeat.motion_model.affine2d();
+var affine_transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+var count = 33;
+var from = [];
+var to = [];
+
+for(var i = 0; i &lt; count; ++i) {
+    // you can use point2d_t structure
+    // or just provide object with x and y properties
+    from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
+    to[i] = { "x":from[i].x + 5, "y":from[i].y+5 };
+}
+affine_kernel.run(from, to, affine_transform, count);
+
+// you can also calculate transform error for each point
+var error = new jsfeat.matrix_t(count, 1, jsfeat.F32_t | jsfeat.C1_t);
+affine_kernel.error(from, to, affine_transform, error.data, count);
 </pre>
-                        <h4>perspective_4point_transform</h4>
-                        <p>Calculates the perspective transform from 4 pairs of the corresponding points. The function calculates the <code>3x3 Matrix</code></p>
+                        <h4>homography2d</h4>
+                        <p>This kernel calculates perspective transform between point sets. Result is <code>3x3 Matrix</code></p>
 <pre class="prettyprint linenums">
-jsfeat.transform.perspective_4point_transform(mat:Array, src_x0, src_y0, dst_x0, dst_y0,
-                                                        src_x1, src_y1, dst_x1, dst_y1,
-                                                        src_x2, src_y2, dst_x2, dst_y2,
-                                                        src_x3, src_y3, dst_x3, dst_y3);
+// create homography kernel
+// you can reuse it for different point sets
+var homo_kernel = new jsfeat.motion_model.homography2d();
+var homo_transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+var count = 33;
+var from = [];
+var to = [];
+
+for(var i = 0; i &lt; count; ++i) {
+    // you can use point2d_t structure
+    // or just provide object with x and y properties
+    from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
+    to[i] = { "x":from[i].x + 5, "y":from[i].y+5 };
+}
+homo_kernel.run(from, to, homo_transform, count);
+
+// you can also calculate transform error for each point
+var error = new jsfeat.matrix_t(count, 1, jsfeat.F32_t | jsfeat.C1_t);
+homo_kernel.error(from, to, homo_transform, error.data, count);
 </pre>
-                        <h4>invert_affine_transform</h4>
-                        <p>Inverts an affine transformation. Can operate inplace.</p>
+                        <h4>ransac</h4>
+                        <p>RANdom SAmple Consensus. [for more info see: <a href="http://en.wikipedia.org/wiki/RANSAC" target="_blank">http://en.wikipedia.org/wiki/RANSAC</a>]</p>
 <pre class="prettyprint linenums">
-jsfeat.transform.invert_affine_transform(src:Array, dst:Array);
+// this class allows you to use above Motion Kernels
+// to estimate motion even with wrong correspondences
+var ransac = jsfeat.motion_estimator.ransac;
+
+// create homography kernel
+// you can reuse it for different point sets
+var homo_kernel = new jsfeat.motion_model.homography2d();
+var transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+var count = 333;
+var from = [];
+var to = [];
+
+for(var i = 0; i &lt; count; ++i) {
+    // you can use point2d_t structure
+    // or just provide object with x and y properties
+    from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
+    to[i] = { "x":from[i].x + Math.random()*5, "y":from[i].y+Math.random()*5 };
+}
+
+// each point will be marked as good(1) or bad(0)
+var mask = new jsfeat.matrix_t(count, 1, jsfeat.U8_t | jsfeat.C1_t);
+
+var model_size = 4; // minimum points to estimate motion
+var thresh = 3; // max error to classify as inlier
+var eps = 0.5; // max outliers ratio
+var prob = 0.99; // probability of success
+var params = new jsfeat.ransac_params_t(model_size, thresh, eps, prob);
+
+var max_iters = 1000;
+
+var ok = ransac(params, homo_kernel, from, to, count, transform, mask, max_iters);
 </pre>
-                        <h4>invert_perspective_transform</h4>
-                        <p>Inverts a perspective transformation. Can operate inplace.</p>
+                        <h4>lmeds</h4>
+                        <p>Least Median of Squares. Similar to above algorithm but uses median error value to filter wrong matches.</p>
 <pre class="prettyprint linenums">
-jsfeat.transform.invert_perspective_transform(src:Array, dst:Array);
+// this class allows you to use above Motion Kernels
+// to estimate motion even with wrong correspondences
+var lmeds = jsfeat.motion_estimator.lmeds;
+
+// create homography kernel
+// you can reuse it for different point sets
+var affine_kernel = new jsfeat.motion_model.affine2d();
+var transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+var count = 333;
+var from = [];
+var to = [];
+
+for(var i = 0; i &lt; count; ++i) {
+    // you can use point2d_t structure
+    // or just provide object with x and y properties
+    from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
+    to[i] = { "x":from[i].x + Math.random()*5, "y":from[i].y+Math.random()*5 };
+}
+
+// each point will be marked as good(1) or bad(0)
+var mask = new jsfeat.matrix_t(count, 1, jsfeat.U8_t | jsfeat.C1_t);
+
+var model_size = 3; // minimum points to estimate motion
+var thresh = 0; // is not used in lmeds
+var eps = 0.45; // hard coded internally
+var prob = 0.99; // probability of success
+var params = new jsfeat.ransac_params_t(model_size, thresh, eps, prob);
+
+var max_iters = 1000;
+
+var ok = lmeds(params, affine_kernel, from, to, count, transform, mask, max_iters);
 </pre>
                     </section>
                     <section id="imgproc">
@@ -379,15 +501,15 @@ jsfeat.imgproc.canny(source:matrix_t, dest:matrix_t, low_threshold, high_thresho
                         <p><a href="sample_warp_perspective.html" target="_blank" role="button" class="btn btn-mini">WARP PERSPECTIVE DEMO</a></p>
 <pre class="prettyprint linenums">
 jsfeat.imgproc.warp_perspective(source:matrix_t, dest:matrix_t, 
-                                warp_mat:Array, fill_value = 0);
+                                warp_mat:matrix_t, fill_value = 0);
 </pre>
                         <h4>warp_affine</h4>
-                        <p>Applies an affine transformation to an image using <code>2x3 Matrix</code>. Single channel source only.</p>
+                        <p>Applies an affine transformation to an image using <code>2x3 or 3x3 Matrix</code>. Single channel source only.</p>
                         <p>To avoid sampling artifacts, the mapping is done in the reverse order, from destination to the source. That is, for each pixel  of the destination image, the functions compute coordinates of the corresponding “donor” pixel in the source image and copy the pixel value.</p>
                         <p><a href="sample_warp_affine.html" target="_blank" role="button" class="btn btn-mini">WARP AFFINE DEMO</a></p>
 <pre class="prettyprint linenums">
 jsfeat.imgproc.warp_affine(source:matrix_t, dest:matrix_t, 
-                           warp_mat:Array, fill_value = 0);
+                           warp_mat:matrix_t, fill_value = 0);
 </pre>
                     </section>
                     <section id="features2d">

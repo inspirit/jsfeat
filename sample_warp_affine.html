@@ -75,7 +75,7 @@
             var stat = new profiler();
 
             var ctx,canvasWidth,canvasHeight;
-            var img_u8, img_u8_warp;
+            var img_u8, img_u8_warp,mat_affine;
 
             function demo_app() {
                 canvasWidth  = canvas.width;
@@ -87,6 +87,14 @@
 
                 img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
                 img_u8_warp = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                mat_affine = new jsfeat.matrix_t(3, 2, jsfeat.F32_t | jsfeat.C1_t);
+
+                mat_affine.data[0] = 1.1548494156391083;
+                mat_affine.data[1] = 0.4783542904563622;
+                mat_affine.data[2] = -164.3568427140416;
+                mat_affine.data[3] = -0.4783542904563622;
+                mat_affine.data[4] = 1.1548494156391083;
+                mat_affine.data[5] = 115.90951319264985;
 
                 stat.add("grayscale");
                 stat.add("warp affine");
@@ -102,9 +110,6 @@
                     stat.start("grayscale");
                     jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
                     stat.stop("grayscale");
-
-                    var mat_affine = [1.1548494156391083, 0.4783542904563622, -164.3568427140416, 
-                                     -0.4783542904563622, 1.1548494156391083, 115.90951319264985];
 
                     stat.start("warp affine");
                     jsfeat.imgproc.warp_affine(img_u8, img_u8_warp, mat_affine, 0);
