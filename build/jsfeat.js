@@ -4,7 +4,6 @@
 
 // namespace ?
 var jsfeat = jsfeat || { REVISION: 'ALPHA' };
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -82,29 +81,44 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
             this.cols = c|0;
             this.rows = r|0;
             if (typeof data_buffer === "undefined") { 
-                this.buffer = new data_t((c * get_data_type_size(data_type) * get_channel(data_type)) * r);
+                this.allocate();
             } else {
                 this.buffer = data_buffer;
+                // data user asked for
+                this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
             }
-            // data user asked for
-            this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
-        matrix_t.prototype.set_data_type = function(data_type) {
-            this.type = get_data_type(data_type)|0;
-            this.channel = get_channel(data_type)|0;
+        matrix_t.prototype.allocate = function() {
             // clear references
             delete this.data;
             delete this.buffer;
             //
-            this.buffer = new data_t((this.cols * get_data_type_size(data_type) * get_channel(data_type)) * this.rows);
+            this.buffer = new data_t((this.cols * get_data_type_size(this.type) * this.channel) * this.rows);
             this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
-        matrix_t.prototype.set_data = function(array) {
-            var i = array.length;
+        matrix_t.prototype.copy_to = function(other) {
+            var od = other.data;
+            var i = this.cols*this.rows*this.channel;
             while(--i >= 0) {
-                this.data[i] = array[i];
+                od[i] = this.data[i];
             }
         }
+        matrix_t.prototype.resize = function(c, r, ch) {
+            if (typeof ch === "undefined") { ch = this.channel; }
+            // change buffer only if new size doesnt fit
+            var new_size = (c * ch) * r;
+            if(new_size > this.rows*this.cols*this.channel) {
+                this.cols = c;
+                this.rows = r;
+                this.channel = ch;
+                this.allocate();
+            } else {
+                this.cols = c;
+                this.rows = r;
+                this.channel = ch;
+            }
+        }
+
         return matrix_t;
     })();
 
@@ -192,7 +206,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.point2d_t = point2d_t;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -272,7 +285,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     cache.allocate(30, 640*4);
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -342,6 +354,123 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 }
 
                 jsfeat.cache.put_buffer(kern_node);
+            },
+
+            // model is 3x3 matrix_t
+            perspective_4point_transform: function(model, src_x0, src_y0, dst_x0, dst_y0,
+                                                        src_x1, src_y1, dst_x1, dst_y1,
+                                                        src_x2, src_y2, dst_x2, dst_y2,
+                                                        src_x3, src_y3, dst_x3, dst_y3) {
+                var t1 = src_x0;
+                var t2 = src_x2;
+                var t4 = src_y1;
+                var t5 = t1 * t2 * t4;
+                var t6 = src_y3;
+                var t7 = t1 * t6;
+                var t8 = t2 * t7;
+                var t9 = src_y2;
+                var t10 = t1 * t9;
+                var t11 = src_x1;
+                var t14 = src_y0;
+                var t15 = src_x3;
+                var t16 = t14 * t15;
+                var t18 = t16 * t11;
+                var t20 = t15 * t11 * t9;
+                var t21 = t15 * t4;
+                var t24 = t15 * t9;
+                var t25 = t2 * t4;
+                var t26 = t6 * t2;
+                var t27 = t6 * t11;
+                var t28 = t9 * t11;
+                var t30 = 1.0 / (t21-t24 - t25 + t26 - t27 + t28);
+                var t32 = t1 * t15;
+                var t35 = t14 * t11;
+                var t41 = t4 * t1;
+                var t42 = t6 * t41;
+                var t43 = t14 * t2;
+                var t46 = t16 * t9;
+                var t48 = t14 * t9 * t11;
+                var t51 = t4 * t6 * t2;
+                var t55 = t6 * t14;
+                var Hr0 = -(t8-t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
+                var Hr1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
+                var Hr2 = t1;
+                var Hr3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
+                var Hr4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
+                var Hr5 = t14;
+                var Hr6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
+                var Hr7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
+                
+                t1 = dst_x0;
+                t2 = dst_x2;
+                t4 = dst_y1;
+                t5 = t1 * t2 * t4;
+                t6 = dst_y3;
+                t7 = t1 * t6;
+                t8 = t2 * t7;
+                t9 = dst_y2;
+                t10 = t1 * t9;
+                t11 = dst_x1;
+                t14 = dst_y0;
+                t15 = dst_x3;
+                t16 = t14 * t15;
+                t18 = t16 * t11;
+                t20 = t15 * t11 * t9;
+                t21 = t15 * t4;
+                t24 = t15 * t9;
+                t25 = t2 * t4;
+                t26 = t6 * t2;
+                t27 = t6 * t11;
+                t28 = t9 * t11;
+                t30 = 1.0 / (t21-t24 - t25 + t26 - t27 + t28);
+                t32 = t1 * t15;
+                t35 = t14 * t11;
+                t41 = t4 * t1;
+                t42 = t6 * t41;
+                t43 = t14 * t2;
+                t46 = t16 * t9;
+                t48 = t14 * t9 * t11;
+                t51 = t4 * t6 * t2;
+                t55 = t6 * t14;
+                var Hl0 = -(t8-t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
+                var Hl1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
+                var Hl2 = t1;
+                var Hl3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
+                var Hl4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
+                var Hl5 = t14;
+                var Hl6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
+                var Hl7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
+
+                // the following code computes R = Hl * inverse Hr
+                t2 = Hr4-Hr7*Hr5;
+                t4 = Hr0*Hr4;
+                t5 = Hr0*Hr5;
+                t7 = Hr3*Hr1;
+                t8 = Hr2*Hr3;
+                t10 = Hr1*Hr6;
+                var t12 = Hr2*Hr6;
+                t15 = 1.0 / (t4-t5*Hr7-t7+t8*Hr7+t10*Hr5-t12*Hr4);
+                t18 = -Hr3+Hr5*Hr6;
+                var t23 = -Hr3*Hr7+Hr4*Hr6;
+                t28 = -Hr1+Hr2*Hr7;
+                var t31 = Hr0-t12;
+                t35 = Hr0*Hr7-t10;
+                t41 = -Hr1*Hr5+Hr2*Hr4;
+                var t44 = t5-t8;
+                var t47 = t4-t7;
+                t48 = t2*t15;
+                var t49 = t28*t15;
+                var t50 = t41*t15;
+                var mat = model.data;
+                mat[0] = Hl0*t48+Hl1*(t18*t15)-Hl2*(t23*t15);
+                mat[1] = Hl0*t49+Hl1*(t31*t15)-Hl2*(t35*t15);
+                mat[2] = -Hl0*t50-Hl1*(t44*t15)+Hl2*(t47*t15);
+                mat[3] = Hl3*t48+Hl4*(t18*t15)-Hl5*(t23*t15);
+                mat[4] = Hl3*t49+Hl4*(t31*t15)-Hl5*(t35*t15);
+                mat[5] = -Hl3*t50-Hl4*(t44*t15)+Hl5*(t47*t15);
+                mat[6] = Hl6*t48+Hl7*(t18*t15)-t23*t15;
+                mat[7] = Hl6*t49+Hl7*(t31*t15)-t35*t15;
+                mat[8] = -Hl6*t50-Hl7*(t44*t15)+t47*t15;
             },
 
             // The current implementation was derived from *BSD system qsort():
@@ -570,7 +699,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.math = math;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -703,6 +831,76 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                         cd[p_CC] = sum;
                     }
                 }
+            },
+
+            // various small matrix operations
+            invert_3x3: function(from, to) {
+                var A = from.data, invA = to.data;
+                var t1 = A[4];
+                var t2 = A[8];
+                var t4 = A[5];
+                var t5 = A[7];
+                var t8 = A[0];
+
+                var t9 = t8*t1;
+                var t11 = t8*t4;
+                var t13 = A[3];
+                var t14 = A[1];
+                var t15 = t13*t14;
+                var t17 = A[2];
+                var t18 = t13*t17;
+                var t20 = A[6];
+                var t21 = t20*t14;
+                var t23 = t20*t17;
+                var t26 = 1.0/(t9*t2-t11*t5-t15*t2+t18*t5+t21*t4-t23*t1);
+                invA[0] = (t1*t2-t4*t5)*t26;
+                invA[1] = -(t14*t2-t17*t5)*t26;
+                invA[2] = -(-t14*t4+t17*t1)*t26;
+                invA[3] = -(t13*t2-t4*t20)*t26;
+                invA[4] = (t8*t2-t23)*t26;
+                invA[5] = -(t11-t18)*t26;
+                invA[6] = -(-t13*t5+t1*t20)*t26;
+                invA[7] = -(t8*t5-t21)*t26;
+                invA[8] = (t9-t15)*t26;
+            },
+            // C = A * B
+            multiply_3x3: function(C, A, B) {
+                var Cd=C.data, Ad=A.data, Bd=B.data;
+                var m1_0 = Ad[0], m1_1 = Ad[1], m1_2 = Ad[2];
+                var m1_3 = Ad[3], m1_4 = Ad[4], m1_5 = Ad[5];
+                var m1_6 = Ad[6], m1_7 = Ad[7], m1_8 = Ad[8];
+
+                var m2_0 = Bd[0], m2_1 = Bd[1], m2_2 = Bd[2];
+                var m2_3 = Bd[3], m2_4 = Bd[4], m2_5 = Bd[5];
+                var m2_6 = Bd[6], m2_7 = Bd[7], m2_8 = Bd[8];
+
+                Cd[0] = m1_0 * m2_0 + m1_1 * m2_3 + m1_2 * m2_6;
+                Cd[1] = m1_0 * m2_1 + m1_1 * m2_4 + m1_2 * m2_7;
+                Cd[2] = m1_0 * m2_2 + m1_1 * m2_5 + m1_2 * m2_8;
+                Cd[3] = m1_3 * m2_0 + m1_4 * m2_3 + m1_5 * m2_6;
+                Cd[4] = m1_3 * m2_1 + m1_4 * m2_4 + m1_5 * m2_7;
+                Cd[5] = m1_3 * m2_2 + m1_4 * m2_5 + m1_5 * m2_8;
+                Cd[6] = m1_6 * m2_0 + m1_7 * m2_3 + m1_8 * m2_6;
+                Cd[7] = m1_6 * m2_1 + m1_7 * m2_4 + m1_8 * m2_7;
+                Cd[8] = m1_6 * m2_2 + m1_7 * m2_5 + m1_8 * m2_8;
+            },
+
+            mat3x3_determinant: function(M) {
+                var md=M.data;
+                return  md[0] * md[4] * md[8] -
+                        md[0] * md[5] * md[7] -
+                        md[3] * md[1] * md[8] +
+                        md[3] * md[2] * md[7] +
+                        md[6] * md[1] * md[5] -
+                        md[6] * md[2] * md[4];
+            },
+
+            determinant_3x3: function(M11, M12, M13, 
+                                      M21, M22, M23, 
+                                      M31, M32, M33) {
+                return  M11 * M22 * M33 - M11 * M23 * M32 -
+                          M21 * M12 * M33 + M21 * M13 * M32 +
+                          M31 * M12 * M23 - M31 * M13 * M22;
             }
         };
 
@@ -896,7 +1094,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
         }
 
         var JacobiSVDImpl = function(At, astep, _W, Vt, vstep, m, n, n1) {
-            var eps = jsfeat.EPSILON * 10.0;
+            var eps = jsfeat.EPSILON * 2.0;
             var minval = jsfeat.FLT_MIN;
             var i=0,j=0,k=0,iter=0,max_iter=Math.max(m, 30);
             var Ai=0,Aj=0,Vi=0,Vj=0,changed=0;
@@ -931,10 +1129,9 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                         Ai = (i*astep)|0, Aj = (j*astep)|0;
                         a = W[i], p = 0, b = W[j];
                         
-                        k = 3;
+                        k = 2;
                         p += At[Ai]*At[Aj];
                         p += At[Ai+1]*At[Aj+1];
-                        p += At[Ai+2]*At[Aj+2];
 
                         for(; k < m; k++)
                             p += At[Ai+k]*At[Aj+k];
@@ -957,7 +1154,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                         W[j] -= delta;
                         
                         if( (iter & 1) && W[i] > 0 && W[j] > 0 ) {
-                            k = 3;//unroll 3x3
+                            k = 2;//unroll 2x2
                             t0 = c*At[Ai] + s*At[Aj];
                             t1 = -s*At[Ai] + c*At[Aj];
                             At[Ai] = t0; At[Aj] = t1;
@@ -965,10 +1162,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                             t0 = c*At[Ai+1] + s*At[Aj+1];
                             t1 = -s*At[Ai+1] + c*At[Aj+1];
                             At[Ai+1] = t0; At[Aj+1] = t1;
-
-                            t0 = c*At[Ai+2] + s*At[Aj+2];
-                            t1 = -s*At[Ai+2] + c*At[Aj+2];
-                            At[Ai+2] = t0; At[Aj+2] = t1;
 
                             for(; k < m; k++) {
                                 t0 = c*At[Ai+k] + s*At[Aj+k];
@@ -977,7 +1170,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                             }
                         } else {
                             a = b = 0;
-                            k = 3; // unroll
+                            k = 2; // unroll
                             t0 = c*At[Ai] + s*At[Aj];
                             t1 = -s*At[Ai] + c*At[Aj];
                             At[Ai] = t0; At[Aj] = t1;
@@ -986,11 +1179,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                             t0 = c*At[Ai+1] + s*At[Aj+1];
                             t1 = -s*At[Ai+1] + c*At[Aj+1];
                             At[Ai+1] = t0; At[Aj+1] = t1;
-                            a += t0*t0; b += t1*t1;
-
-                            t0 = c*At[Ai+2] + s*At[Aj+2];
-                            t1 = -s*At[Ai+2] + c*At[Aj+2];
-                            At[Ai+2] = t0; At[Aj+2] = t1;
                             a += t0*t0; b += t1*t1;
 
                             for( ; k < m; k++ )
@@ -1009,7 +1197,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                         if(Vt) {
                             Vi = (i*vstep)|0, Vj = (j*vstep)|0;
 
-                            k = 3;
+                            k = 2;
                             t0 = c*Vt[Vi] + s*Vt[Vj];
                             t1 = -s*Vt[Vi] + c*Vt[Vj];
                             Vt[Vi] = t0; Vt[Vj] = t1;
@@ -1017,10 +1205,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                             t0 = c*Vt[Vi+1] + s*Vt[Vj+1];
                             t1 = -s*Vt[Vi+1] + c*Vt[Vj+1];
                             Vt[Vi+1] = t0; Vt[Vj+1] = t1;
-
-                            t0 = c*Vt[Vi+2] + s*Vt[Vj+2];
-                            t1 = -s*Vt[Vi+2] + c*Vt[Vj+2];
-                            Vt[Vi+2] = t0; Vt[Vj+2] = t1;
 
                             for(; k < n; k++) {
                                 t0 = c*Vt[Vi+k] + s*Vt[Vj+k];
@@ -1434,174 +1618,655 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 })(jsfeat);
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
+ *
  */
 
 (function(global) {
     "use strict";
     //
 
-    var transform = (function() {
-        //
-        return {
-            affine_3point_transform: function(mat, src_x0, src_y0, dst_x0, dst_y0,
-                                                    src_x1, src_y1, dst_x1, dst_y1,
-                                                    src_x2, src_y2, dst_x2, dst_y2) {
-                // we need linear algebra module first
-            },
+    var motion_model = (function() {
 
-            perspective_4point_transform: function(mat, src_x0, src_y0, dst_x0, dst_y0,
-                                                        src_x1, src_y1, dst_x1, dst_y1,
-                                                        src_x2, src_y2, dst_x2, dst_y2,
-                                                        src_x3, src_y3, dst_x3, dst_y3) {
-                var t1 = src_x0;
-                var t2 = src_x2;
-                var t4 = src_y1;
-                var t5 = t1 * t2 * t4;
-                var t6 = src_y3;
-                var t7 = t1 * t6;
-                var t8 = t2 * t7;
-                var t9 = src_y2;
-                var t10 = t1 * t9;
-                var t11 = src_x1;
-                var t14 = src_y0;
-                var t15 = src_x3;
-                var t16 = t14 * t15;
-                var t18 = t16 * t11;
-                var t20 = t15 * t11 * t9;
-                var t21 = t15 * t4;
-                var t24 = t15 * t9;
-                var t25 = t2 * t4;
-                var t26 = t6 * t2;
-                var t27 = t6 * t11;
-                var t28 = t9 * t11;
-                var t30 = 1.0 / (t21-t24 - t25 + t26 - t27 + t28);
-                var t32 = t1 * t15;
-                var t35 = t14 * t11;
-                var t41 = t4 * t1;
-                var t42 = t6 * t41;
-                var t43 = t14 * t2;
-                var t46 = t16 * t9;
-                var t48 = t14 * t9 * t11;
-                var t51 = t4 * t6 * t2;
-                var t55 = t6 * t14;
-                var Hr0 = -(t8-t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
-                var Hr1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
-                var Hr2 = t1;
-                var Hr3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
-                var Hr4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
-                var Hr5 = t14;
-                var Hr6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
-                var Hr7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
-                
-                t1 = dst_x0;
-                t2 = dst_x2;
-                t4 = dst_y1;
-                t5 = t1 * t2 * t4;
-                t6 = dst_y3;
-                t7 = t1 * t6;
-                t8 = t2 * t7;
-                t9 = dst_y2;
-                t10 = t1 * t9;
-                t11 = dst_x1;
-                t14 = dst_y0;
-                t15 = dst_x3;
-                t16 = t14 * t15;
-                t18 = t16 * t11;
-                t20 = t15 * t11 * t9;
-                t21 = t15 * t4;
-                t24 = t15 * t9;
-                t25 = t2 * t4;
-                t26 = t6 * t2;
-                t27 = t6 * t11;
-                t28 = t9 * t11;
-                t30 = 1.0 / (t21-t24 - t25 + t26 - t27 + t28);
-                t32 = t1 * t15;
-                t35 = t14 * t11;
-                t41 = t4 * t1;
-                t42 = t6 * t41;
-                t43 = t14 * t2;
-                t46 = t16 * t9;
-                t48 = t14 * t9 * t11;
-                t51 = t4 * t6 * t2;
-                t55 = t6 * t14;
-                var Hl0 = -(t8-t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
-                var Hl1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
-                var Hl2 = t1;
-                var Hl3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
-                var Hl4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
-                var Hl5 = t14;
-                var Hl6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
-                var Hl7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
+    	var sqr = function(x) {
+    		return x*x;
+    	}
 
-                // the following code computes R = Hl * inverse Hr
-                t2 = Hr4-Hr7*Hr5;
-                t4 = Hr0*Hr4;
-                t5 = Hr0*Hr5;
-                t7 = Hr3*Hr1;
-                t8 = Hr2*Hr3;
-                t10 = Hr1*Hr6;
-                var t12 = Hr2*Hr6;
-                t15 = 1.0 / (t4-t5*Hr7-t7+t8*Hr7+t10*Hr5-t12*Hr4);
-                t18 = -Hr3+Hr5*Hr6;
-                var t23 = -Hr3*Hr7+Hr4*Hr6;
-                t28 = -Hr1+Hr2*Hr7;
-                var t31 = Hr0-t12;
-                t35 = Hr0*Hr7-t10;
-                t41 = -Hr1*Hr5+Hr2*Hr4;
-                var t44 = t5-t8;
-                var t47 = t4-t7;
-                t48 = t2*t15;
-                var t49 = t28*t15;
-                var t50 = t41*t15;
-                mat[0] = Hl0*t48+Hl1*(t18*t15)-Hl2*(t23*t15);
-                mat[1] = Hl0*t49+Hl1*(t31*t15)-Hl2*(t35*t15);
-                mat[2] = -Hl0*t50-Hl1*(t44*t15)+Hl2*(t47*t15);
-                mat[3] = Hl3*t48+Hl4*(t18*t15)-Hl5*(t23*t15);
-                mat[4] = Hl3*t49+Hl4*(t31*t15)-Hl5*(t35*t15);
-                mat[5] = -Hl3*t50-Hl4*(t44*t15)+Hl5*(t47*t15);
-                mat[6] = Hl6*t48+Hl7*(t18*t15)-t23*t15;
-                mat[7] = Hl6*t49+Hl7*(t31*t15)-t35*t15;
-                mat[8] = -Hl6*t50-Hl7*(t44*t15)+t47*t15;
-            },
+    	// does isotropic normalization
+    	var iso_normalize_points = function(from, to, T0, T1, count) {
+			var i=0;
+		    var cx0=0.0, cy0=0.0, d0=0.0, s0=0.0;
+		    var cx1=0.0, cy1=0.0, d1=0.0, s1=0.0;
+		    var dx=0.0,dy=0.0;
 
-            invert_affine_transform: function(src, dst) {
-                var m11 = src[0], m12 = src[1], m13 = src[2];
-                var m21 = src[3], m22 = src[4], m23 = src[5];
+		    for (; i < count; ++i) {
+		        cx0 += from[i].x;
+		        cy0 += from[i].y;
+		        cx1 += to[i].x;
+		        cy1 += to[i].y;
+		    }
 
-                var det = 1.0 / (m11 * m22 - m12 * m21);
+		    cx0 /= count; cy0 /= count;
+		    cx1 /= count; cy1 /= count;
 
-                dst[0] = det * m22;
-                dst[1] = det * -m12;
-                dst[2] = det * (m12*m23 - m13*m22);
+		    for (i = 0; i < count; ++i) {
+		        dx = from[i].x - cx0;
+		        dy = from[i].y - cy0;
+		        d0 += Math.sqrt(dx*dx + dy*dy);
+		        dx = to[i].x - cx1;
+		        dy = to[i].y - cy1;
+		        d1 += Math.sqrt(dx*dx + dy*dy);
+		    }
 
-                dst[3] = det * -m21;
-                dst[4] = det * m11;
-                dst[5] = det * (m13*m21 - m11*m23);
-            },
+		    d0 /= count; d1 /= count;
 
-            invert_perspective_transform: function(src, dst) {
-                var m11 = src[0], m12 = src[1], m13 = src[2];
-                var m21 = src[3], m22 = src[4], m23 = src[5];
-                var m31 = src[6], m32 = src[7], m33 = src[8];
+		    s0 = Math.SQRT2 / d0; s1 = Math.SQRT2 / d1;
 
-                var det = 1.0 / (m11 * (m22*m33 - m23*m32) - m12 * (m21*m33 - m23*m31) + m13 * (m21*m32 - m22*m31));
+		    T0[0] = T0[4] = s0;
+		    T0[2] = -cx0*s0;
+		    T0[5] = -cy0*s0;
+		    T0[1] = T0[3] = T0[6] = T0[7] = 0.0;
+		    T0[8] = 1.0;
 
-                dst[0] = det * (m22*m33 - m23*m32);
-                dst[1] = det * (m13*m32 - m12*m33);
-                dst[2] = det * (m12*m23 - m13*m22);
+		    T1[0] = T1[4] = s1;
+		    T1[2] = -cx1*s1;
+		    T1[5] = -cy1*s1;
+		    T1[1] = T1[3] = T1[6] = T1[7] = 0.0;
+		    T1[8] = 1.0;
+		}
 
-                dst[3] = det * (m23*m31 - m21*m33);
-                dst[4] = det * (m11*m33 - m13*m31);
-                dst[5] = det * (m13*m21 - m11*m23);
+		var have_collinear_points = function(points, count) {
+		    var j=0,k=0,i=(count-1)|0;
+		    var dx1=0.0,dy1=0.0,dx2=0.0,dy2=0.0;
 
-                dst[6] = det * (m21*m32 - m22*m31);
-                dst[7] = det * (m12*m31 - m11*m32);
-                dst[8] = det * (m11*m22 - m12*m21);
-            }
-        };
+		    // check that the i-th selected point does not belong
+		    // to a line connecting some previously selected points
+		    for(; j < i; ++j) {
+		        dx1 = points[j].x - points[i].x;
+		        dy1 = points[j].y - points[i].y;
+		        for(k = 0; k < j; ++k) {
+		            dx2 = points[k].x - points[i].x;
+		            dy2 = points[k].y - points[i].y;
+		            if( Math.abs(dx2*dy1 - dy2*dx1) <= jsfeat.EPSILON*(Math.abs(dx1) + Math.abs(dy1) + Math.abs(dx2) + Math.abs(dy2)))
+		                return true;
+		        }
+		    }
+		    return false;
+		}
+    	
+    	var affine2d = (function () {
+
+	        function affine2d() {
+	        	this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	this.AtA = new jsfeat.matrix_t(6, 6, jsfeat.F32_t|jsfeat.C1_t);
+	        	this.AtB = new jsfeat.matrix_t(6, 1, jsfeat.F32_t|jsfeat.C1_t);
+	        }
+
+	        affine2d.prototype.run = function(from, to, model, count) {
+	        	var i=0,j=0;
+	        	var dt=model.type|jsfeat.C1_t;
+	        	var md=model.data, t0d=this.T0.data, t1d=this.T1.data;
+	        	var pt0,pt1,px=0.0,py=0.0;
+
+	            iso_normalize_points(from, to, t0d, t1d, count);
+
+	            var a_buff = jsfeat.cache.get_buffer((2*count*6)<<3);
+                var b_buff = jsfeat.cache.get_buffer((2*count)<<3);
+
+                var a_mt = new jsfeat.matrix_t(6, 2*count, dt, a_buff.data);
+                var b_mt = new jsfeat.matrix_t(1, 2*count, dt, b_buff.data);
+                var ad=a_mt.data, bd=b_mt.data;
+
+			    for (; i < count; ++i) {
+			    	pt0 = from[i];
+			        pt1 = to[i];
+
+			        px = t0d[0]*pt0.x + t0d[1]*pt0.y + t0d[2];
+			        py = t0d[3]*pt0.x + t0d[4]*pt0.y + t0d[5];
+
+			        j = i*2*6;
+			        ad[j]=px, ad[j+1]=py, ad[j+2]=1.0, ad[j+3]=0.0, ad[j+4]=0.0, ad[j+5]=0.0;
+
+			        j += 6;
+			        ad[j]=0.0, ad[j+1]=0.0, ad[j+2]=0.0, ad[j+3]=px, ad[j+4]=py, ad[j+5]=1.0;
+
+			        bd[i<<1] = t1d[0]*pt1.x + t1d[1]*pt1.y + t1d[2];
+			        bd[(i<<1)+1] = t1d[3]*pt1.x + t1d[4]*pt1.y + t1d[5];
+			    }
+
+			    jsfeat.matmath.multiply_AtA(this.AtA, a_mt);
+			    jsfeat.matmath.multiply_AtB(this.AtB, a_mt, b_mt);
+
+			    jsfeat.linalg.lu_solve(this.AtA, this.AtB);
+
+			    md[0] = this.AtB.data[0], md[1]=this.AtB.data[1], md[2]=this.AtB.data[2];
+			    md[3] = this.AtB.data[3], md[4]=this.AtB.data[4], md[5]=this.AtB.data[5];
+			    md[6] = 0.0, md[7] = 0.0, md[8] = 1.0; // fill last row
+
+			    // denormalize
+			    jsfeat.matmath.invert_3x3(this.T1, this.T1);
+			    jsfeat.matmath.multiply_3x3(model, this.T1, model);
+			    jsfeat.matmath.multiply_3x3(model, model, this.T0);
+
+			    // free buffer
+			    jsfeat.cache.put_buffer(a_buff);
+			    jsfeat.cache.put_buffer(b_buff);
+
+			    return 1;
+	        }
+
+	        affine2d.prototype.error = function(from, to, model, err, count) {
+	        	var i=0;
+	        	var pt0,pt1;
+	        	var m=model.data;
+
+			    for (; i < count; ++i) {
+			        pt0 = from[i];
+			        pt1 = to[i];
+
+			        err[i] = sqr(pt1.x - m[0]*pt0.x - m[1]*pt0.y - m[2]) +
+			                 sqr(pt1.y - m[3]*pt0.x - m[4]*pt0.y - m[5]);
+			    }
+	        }
+
+	        affine2d.prototype.check_subset = function(from, to, count) {
+	            return true; // all good
+	        }
+
+	        return affine2d;
+	    })();
+
+	    var homography2d = (function () {
+
+	        function homography2d() {
+	        	this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	this.mLtL = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	        	this.Evec = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	        }
+
+	        homography2d.prototype.run = function(from, to, model, count) {
+	        	var i=0,j=0;
+	        	var md=model.data, t0d=this.T0.data, t1d=this.T1.data;
+	        	var LtL=this.mLtL.data, evd=this.Evec.data;
+	        	var x=0.0,y=0.0,X=0.0,Y=0.0;
+
+			    // norm
+				var smx=0.0, smy=0.0, cmx=0.0, cmy=0.0, sMx=0.0, sMy=0.0, cMx=0.0, cMy=0.0;
+
+				for(; i < count; ++i) {
+				    cmx += to[i].x;
+				    cmy += to[i].y;
+				    cMx += from[i].x;
+				    cMy += from[i].y;
+				}
+
+			    cmx /= count; cmy /= count;
+			    cMx /= count; cMy /= count;
+
+			    for(i = 0; i < count; ++i)
+			    {
+				    smx += Math.abs(to[i].x - cmx);
+				    smy += Math.abs(to[i].y - cmy);
+				    sMx += Math.abs(from[i].x - cMx);
+				    sMy += Math.abs(from[i].y - cMy);
+				}
+
+			    if( Math.abs(smx) < jsfeat.EPSILON 
+			    	|| Math.abs(smy) < jsfeat.EPSILON 
+			    	|| Math.abs(sMx) < jsfeat.EPSILON 
+			    	|| Math.abs(sMy) < jsfeat.EPSILON ) return 0;
+
+			    smx = count/smx; smy = count/smy;
+			    sMx = count/sMx; sMy = count/sMy;
+
+			    t0d[0] = sMx; 	t0d[1] = 0; 	t0d[2] = -cMx*sMx; 
+			    t0d[3] = 0; 	t0d[4] = sMy; 	t0d[5] = -cMy*sMy; 
+			    t0d[6] = 0; 	t0d[7] = 0; 	t0d[8] = 1;
+
+				t1d[0] = 1.0/smx; 	t1d[1] = 0; 		t1d[2] = cmx;
+				t1d[3] = 0; 		t1d[4] = 1.0/smy; 	t1d[5] = cmy;
+				t1d[6] = 0; 		t1d[7] = 0; 		t1d[8] = 1;
+				//
+
+				// construct system
+				i = 81;
+				while(--i >= 0) {
+					LtL[i] = 0.0;
+				}
+				for(i = 0; i < count; ++i) {
+					x = (to[i].x - cmx) * smx;
+					y = (to[i].y - cmy) * smy;
+					X = (from[i].x - cMx) * sMx;
+					Y = (from[i].y - cMy) * sMy;
+
+					LtL[0] += X*X;
+					LtL[1] += X*Y;
+					LtL[2] += X;
+
+					LtL[6] += X*-x*X;
+					LtL[7] += X*-x*Y;
+					LtL[8] += X*-x;
+					LtL[10] += Y*Y;
+					LtL[11] += Y;
+
+					LtL[15] += Y*-x*X;
+					LtL[16] += Y*-x*Y;
+					LtL[17] += Y*-x;
+					LtL[20] += 1.0;
+
+					LtL[24] += -x*X;
+					LtL[25] += -x*Y;
+					LtL[26] += -x;
+					LtL[30] += X*X;
+					LtL[31] += X*Y;
+					LtL[32] += X;
+					LtL[33] += X*-y*X;
+					LtL[34] += X*-y*Y;
+					LtL[35] += X*-y;
+					LtL[40] += Y*Y;
+					LtL[41] += Y;
+					LtL[42] += Y*-y*X;
+					LtL[43] += Y*-y*Y;
+					LtL[44] += Y*-y;
+					LtL[50] += 1.0;
+					LtL[51] += -y*X;
+					LtL[52] += -y*Y;
+					LtL[53] += -y;
+					LtL[60] += -x*X*-x*X + -y*X*-y*X;
+					LtL[61] += -x*X*-x*Y + -y*X*-y*Y;
+					LtL[62] += -x*X*-x + -y*X*-y;
+					LtL[70] += -x*Y*-x*Y + -y*Y*-y*Y;
+					LtL[71] += -x*Y*-x + -y*Y*-y;
+					LtL[80] += -x*-x + -y*-y;
+				}
+				//
+
+				// symmetry
+			    for(i = 0; i < 9; ++i) {
+			        for(j = 0; j < i; ++j)
+			            LtL[i*9+j] = LtL[j*9+i];
+			    }
+
+				jsfeat.linalg.eigenVV(this.mLtL, this.Evec);
+
+				md[0]=evd[72], md[1]=evd[73], md[2]=evd[74];
+			    md[3]=evd[75], md[4]=evd[76], md[5]=evd[77];
+			    md[6]=evd[78], md[7]=evd[79], md[8]=evd[80];
+
+				// denormalize
+			    jsfeat.matmath.multiply_3x3(model, this.T1, model);
+			    jsfeat.matmath.multiply_3x3(model, model, this.T0);
+
+			    // set bottom right to 1.0
+			    x = 1.0/md[8];
+			    md[0] *= x; md[1] *= x; md[2] *= x;
+			    md[3] *= x; md[4] *= x; md[5] *= x;
+			    md[6] *= x; md[7] *= x; md[8] = 1.0;
+
+			    return 1;
+	        }
+
+	        homography2d.prototype.error = function(from, to, model, err, count) {
+	        	var i=0;
+	        	var pt0,pt1,ww=0.0,dx=0.0,dy=0.0;
+	        	var m=model.data;
+
+			    for (; i < count; ++i) {
+			        pt0 = from[i];
+			        pt1 = to[i];
+
+			        ww = 1.0/(m[6]*pt0.x + m[7]*pt0.y + 1.0);
+			        dx = (m[0]*pt0.x + m[1]*pt0.y + m[2])*ww - pt1.x;
+			        dy = (m[3]*pt0.x + m[4]*pt0.y + m[5])*ww - pt1.y;
+			        err[i] = (dx*dx + dy*dy);
+			    }
+	        }
+
+	        homography2d.prototype.check_subset = function(from, to, count) {
+	        	if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
+        			return false;
+        		}
+        		if( count == 4 ) {
+			        var negative = 0;
+
+			        var fp0=from[0],fp1=from[1],fp2=from[2],fp3=from[3];
+			        var tp0=to[0],tp1=to[1],tp2=to[2],tp3=to[3];
+
+			        // set1
+			        var A11=fp0.x, A12=fp0.y, A13=1.0;
+			        var A21=fp1.x, A22=fp1.y, A23=1.0;
+			        var A31=fp2.x, A32=fp2.y, A33=1.0;
+
+			        var B11=tp0.x, B12=tp0.y, B13=1.0;
+			        var B21=tp1.x, B22=tp1.y, B23=1.0;
+			        var B31=tp2.x, B32=tp2.y, B33=1.0;
+
+			        var detA = jsfeat.matmath.determinant_3x3(A11,A12,A13, A21,A22,A23, A31,A32,A33);
+					var detB = jsfeat.matmath.determinant_3x3(B11,B12,B13, B21,B22,B23, B31,B32,B33);
+
+					if(detA*detB < 0) negative++;
+
+					// set2
+					A11=fp1.x, A12=fp1.y;
+			        A21=fp2.x, A22=fp2.y;
+			        A31=fp3.x, A32=fp3.y;
+
+			        B11=tp1.x, B12=tp1.y;
+			        B21=tp2.x, B22=tp2.y;
+			        B31=tp3.x, B32=tp3.y;
+
+			        detA = jsfeat.matmath.determinant_3x3(A11,A12,A13, A21,A22,A23, A31,A32,A33);
+					detB = jsfeat.matmath.determinant_3x3(B11,B12,B13, B21,B22,B23, B31,B32,B33);
+
+					if(detA*detB < 0) negative++;
+
+					// set3
+					A11=fp0.x, A12=fp0.y;
+			        A21=fp2.x, A22=fp2.y;
+			        A31=fp3.x, A32=fp3.y;
+
+			        B11=tp0.x, B12=tp0.y;
+			        B21=tp2.x, B22=tp2.y;
+			        B31=tp3.x, B32=tp3.y;
+
+			        detA = jsfeat.matmath.determinant_3x3(A11,A12,A13, A21,A22,A23, A31,A32,A33);
+					detB = jsfeat.matmath.determinant_3x3(B11,B12,B13, B21,B22,B23, B31,B32,B33);
+
+					if(detA*detB < 0) negative++;
+
+					// set4
+					A11=fp0.x, A12=fp0.y;
+			        A21=fp1.x, A22=fp1.y;
+			        A31=fp3.x, A32=fp3.y;
+
+			        B11=tp0.x, B12=tp0.y;
+			        B21=tp1.x, B22=tp1.y;
+			        B31=tp3.x, B32=tp3.y;
+
+			        detA = jsfeat.matmath.determinant_3x3(A11,A12,A13, A21,A22,A23, A31,A32,A33);
+					detB = jsfeat.matmath.determinant_3x3(B11,B12,B13, B21,B22,B23, B31,B32,B33);
+
+					if(detA*detB < 0) negative++;
+
+			        if(negative != 0 && negative != 4) {
+			        	return false;
+			        }
+			    }
+	            return true; // all good
+	        }
+
+	        return homography2d;
+	    })();
+
+	    return {
+
+    		affine2d:affine2d,
+    		homography2d:homography2d
+
+    	};
+
     })();
 
-    global.transform = transform;
+    var ransac_params_t = (function () {
+        function ransac_params_t(size, thresh, eps, prob) {
+            if (typeof size === "undefined") { size=0; }
+            if (typeof thresh === "undefined") { thresh=0.5; }
+            if (typeof eps === "undefined") { eps=0.5; }
+            if (typeof prob === "undefined") { prob=0.99; }
+
+            this.size = size;
+            this.thresh = thresh;
+            this.eps = eps;
+            this.prob = prob;
+        };
+        ransac_params_t.prototype.update_iters = function(_eps, max_iters) {
+	        var num = Math.log(1 - this.prob);
+	        var denom = Math.log(1 - Math.pow(1 - _eps, this.size));
+	        return (denom >= 0 || -num >= max_iters*(-denom) ? max_iters : Math.round(num/denom))|0;
+        };
+        return ransac_params_t;
+    })();
+
+    var motion_estimator = (function() {
+
+    	var get_subset = function(kernel, from, to, need_cnt, max_cnt, from_sub, to_sub) {
+    		var max_try = 1000;
+    		var indices = [];
+		    var i=0, j=0, ssiter=0, idx_i=0, ok=false;
+		    for(; ssiter < max_try; ++ssiter)  {
+		        i = 0;
+		        for (; i < need_cnt && ssiter < max_try;) {
+		            ok = false;
+		            idx_i = 0;
+		            while (!ok) {
+		                ok = true;
+		                idx_i = indices[i] = Math.floor(Math.random() * max_cnt)|0;
+		                for (j = 0; j < i; ++j) {
+		                    if (idx_i == indices[j])
+		                    { ok = false; break; }
+		                }
+		            }
+		            from_sub[i] = from[idx_i];
+		            to_sub[i] = to[idx_i];
+		            if( !kernel.check_subset( from_sub, to_sub, i+1 ) ) {
+		                ssiter++;
+		                continue;
+		            }
+		            ++i;
+		        }
+		        break;
+		    }
+
+		    return (i == need_cnt && ssiter < max_try);
+    	}
+
+    	var find_inliers = function(kernel, model, from, to, count, thresh, err, mask) {
+    		var numinliers = 0, i=0, f=0;
+    		var t = thresh*thresh;
+
+    		kernel.error(from, to, model, err, count);
+
+		    for(; i < count; ++i) {
+		        f = err[i] <= t;
+		        mask[i] = f|0;
+		        numinliers += f;
+		    }
+		    return numinliers;
+    	}
+
+    	return {
+
+    		ransac: function(params, kernel, from, to, count, model, mask, max_iters) {
+    			if (typeof max_iters === "undefined") { max_iters=1000; }
+
+    			if(count < params.size) return false;
+
+    			var model_points = params.size;
+			    var niters = max_iters, iter=0;
+			    var result = false;
+
+			    var subset0 = [];
+			    var subset1 = [];
+			    var found = false;
+
+			    var mc=model.cols,mr=model.rows;
+                var dt = model.type | jsfeat.C1_t;
+
+			    var m_buff = jsfeat.cache.get_buffer((mc*mr)<<3);
+			    var ms_buff = jsfeat.cache.get_buffer(count);
+			    var err_buff = jsfeat.cache.get_buffer(count<<2);
+			    var M = new jsfeat.matrix_t(mc, mr, dt, m_buff.data);
+			    var curr_mask = new jsfeat.matrix_t(count, 1, jsfeat.U8_t|jsfeat.C1_t, ms_buff.data);
+
+			    var inliers_max = -1, numinliers=0;
+			    var nmodels = 0;
+
+			    var err = err_buff.f32;
+
+			    // special case
+			    if(count == model_points) {
+			        if(kernel.run(from, to, M, count) <= 0) {
+			        	jsfeat.cache.put_buffer(m_buff);
+			        	jsfeat.cache.put_buffer(ms_buff);
+			        	jsfeat.cache.put_buffer(err_buff);
+			        	return false;
+			        }
+
+			        M.copy_to(model);
+			        if(mask) {
+			        	while(--count >= 0) {
+			        		mask.data[count] = 1;
+			        	}
+			        }
+			        jsfeat.cache.put_buffer(m_buff);
+			        jsfeat.cache.put_buffer(ms_buff);
+			        jsfeat.cache.put_buffer(err_buff);
+			        return true;
+			    }
+
+			    for (; iter < niters; ++iter) {
+			        // generate subset
+			        found = get_subset(kernel, from, to, model_points, count, subset0, subset1);
+			        if(!found) {
+			            if(iter == 0) {
+			            	jsfeat.cache.put_buffer(m_buff);
+			            	jsfeat.cache.put_buffer(ms_buff);
+			            	jsfeat.cache.put_buffer(err_buff);
+			                return false;
+			            }
+			            break;
+			        }
+
+			        nmodels = kernel.run( subset0, subset1, M, model_points );
+			        if(nmodels <= 0)
+			            continue;
+
+			        // TODO handle multimodel output
+
+			        numinliers = find_inliers(kernel, M, from, to, count, params.thresh, err, curr_mask.data);
+
+			        if( numinliers > Math.max(inliers_max, model_points-1) ) {
+			            M.copy_to(model);
+			            inliers_max = numinliers;
+			            if(mask) curr_mask.copy_to(mask);
+			            niters = params.update_iters((count - numinliers)/count, niters);
+			            result = true;
+			        }
+			    }
+
+			    jsfeat.cache.put_buffer(m_buff);
+			    jsfeat.cache.put_buffer(ms_buff);
+			    jsfeat.cache.put_buffer(err_buff);
+
+			    return result;
+    		},
+
+    		lmeds: function(params, kernel, from, to, count, model, mask, max_iters) {
+    			if (typeof max_iters === "undefined") { max_iters=1000; }
+
+    			if(count < params.size) return false;
+
+    			var model_points = params.size;
+			    var niters = max_iters, iter=0;
+			    var result = false;
+
+			    var subset0 = [];
+			    var subset1 = [];
+			    var found = false;
+
+			    var mc=model.cols,mr=model.rows;
+                var dt = model.type | jsfeat.C1_t;
+
+			    var m_buff = jsfeat.cache.get_buffer((mc*mr)<<3);
+			    var ms_buff = jsfeat.cache.get_buffer(count);
+			    var err_buff = jsfeat.cache.get_buffer(count<<2);
+			    var M = new jsfeat.matrix_t(mc, mr, dt, m_buff.data);
+			    var curr_mask = new jsfeat.matrix_t(count, 1, jsfeat.U8_t|jsfeat.C1_t, ms_buff.data);
+
+			    var numinliers=0;
+			    var nmodels = 0;
+
+			    var err = err_buff.f32;
+			    var min_median = 1000000000.0, sigma=0.0, median=0.0;
+
+			    params.eps = 0.45;
+			    niters = params.update_iters(params.eps, niters);
+
+			    // special case
+			    if(count == model_points) {
+			        if(kernel.run(from, to, M, count) <= 0) {
+			        	jsfeat.cache.put_buffer(m_buff);
+			        	jsfeat.cache.put_buffer(ms_buff);
+			        	jsfeat.cache.put_buffer(err_buff);
+			        	return false;
+			        }
+
+			        M.copy_to(model);
+			        if(mask) {
+			        	while(--count >= 0) {
+			        		mask.data[count] = 1;
+			        	}
+			        }
+			        jsfeat.cache.put_buffer(m_buff);
+			        jsfeat.cache.put_buffer(ms_buff);
+			        jsfeat.cache.put_buffer(err_buff);
+			        return true;
+			    }
+
+			    for (; iter < niters; ++iter) {
+			        // generate subset
+			        found = get_subset(kernel, from, to, model_points, count, subset0, subset1);
+			        if(!found) {
+			            if(iter == 0) {
+			            	jsfeat.cache.put_buffer(m_buff);
+			            	jsfeat.cache.put_buffer(ms_buff);
+			            	jsfeat.cache.put_buffer(err_buff);
+			                return false;
+			            }
+			            break;
+			        }
+
+			        nmodels = kernel.run( subset0, subset1, M, model_points );
+			        if(nmodels <= 0)
+			            continue;
+
+			        // TODO handle multimodel output
+
+			        kernel.error(from, to, M, err, count);
+			        median = jsfeat.math.median(err, 0, count-1);
+
+			        if(median < min_median) {
+			            min_median = median;
+			            M.copy_to(model);
+			            result = true;
+			        }
+			    }
+
+			    if(result) {
+			        sigma = 2.5*1.4826*(1 + 5.0/(count - model_points))*Math.sqrt(minMedian);
+			        sigma = Math.max(sigma, 0.001);
+
+			        numinliers = find_inliers(kernel, model, from, to, count, sigma, err, curr_mask.data);
+			        if(mask) curr_mask.copy_to(mask);
+			        
+			        result = numinliers >= model_points;
+			    }
+
+			    jsfeat.cache.put_buffer(m_buff);
+			    jsfeat.cache.put_buffer(ms_buff);
+			    jsfeat.cache.put_buffer(err_buff);
+
+			    return result;
+    		}
+
+    	};
+
+    })();
+
+    global.ransac_params_t = ransac_params_t;
+    global.motion_model = motion_model;
+    global.motion_estimator = motion_estimator;
 
 })(jsfeat);
 /**
@@ -1615,7 +2280,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     var imgproc = (function() {
 
         var _resample_u8 = function(src, dst, nw, nh) {
-            var xofs = [],xofs_count=0;
+            var xofs_count=0;
             var ch=src.channel,w=src.cols,h=src.rows;
             var src_d=src.data,dst_d=dst.data;
             var scale_x = w / nw, scale_y = h / nh;
@@ -1625,9 +2290,11 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 
             var buf_node = jsfeat.cache.get_buffer((nw*ch)<<2);
             var sum_node = jsfeat.cache.get_buffer((nw*ch)<<2);
+            var xofs_node = jsfeat.cache.get_buffer((w*2*3)<<2);
 
             var buf = buf_node.i32;
             var sum = sum_node.i32;
+            var xofs = xofs_node.i32;
 
             for (; dx < nw; dx++) {
                 fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
@@ -1636,19 +2303,22 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 sx2 = Math.min(sx2, w - 1);
 
                 if(sx1 > fsx1) {
-                    xofs[xofs_count++] = {"si": ((sx1 - 1)*ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": ((sx1 - fsx1) * 0x100)|0};
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = ((sx1 - 1)*ch)|0; 
+                    xofs[k++] = ((sx1 - fsx1) * 0x100)|0;
+                    xofs_count++;
                 }
                 for(sx = sx1; sx < sx2; sx++){
-                    xofs[xofs_count++] = {"si": (sx * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": 256};
+                    xofs_count++;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (sx * ch)|0;
+                    xofs[k++] = 256;
                 }
                 if(fsx2 - sx2 > 1e-3) {
-                    xofs[xofs_count++] = {"si": (sx2 * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": ((fsx2 - sx2) * 256)|0};
+                    xofs_count++;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (sx2 * ch)|0;
+                    xofs[k++] = ((fsx2 - sx2) * 256)|0;
                 }
             }
 
@@ -1659,9 +2329,9 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
             for (sy = 0; sy < h; sy++) {
                 a = w * sy;
                 for (k = 0; k < xofs_count; k++) {
-                    dxn = xofs[k].di;
-                    alpha = xofs[k].alpha;
-                    sx1 = xofs[k].si;
+                    dxn = xofs[k*3];
+                    sx1 = xofs[k*3+1];
+                    alpha = xofs[k*3+2];
                     for (i = 0; i < ch; i++) {
                         buf[dxn + i] += src_d[a+sx1+i] * alpha;
                     }
@@ -1693,10 +2363,11 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 
             jsfeat.cache.put_buffer(sum_node);
             jsfeat.cache.put_buffer(buf_node);
+            jsfeat.cache.put_buffer(xofs_node);
         }
 
         var _resample = function(src, dst, nw, nh) {
-            var xofs = [],xofs_count=0;
+            var xofs_count=0;
             var ch=src.channel,w=src.cols,h=src.rows;
             var src_d=src.data,dst_d=dst.data;
             var scale_x = w / nw, scale_y = h / nh;
@@ -1706,9 +2377,11 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 
             var buf_node = jsfeat.cache.get_buffer((nw*ch)<<2);
             var sum_node = jsfeat.cache.get_buffer((nw*ch)<<2);
+            var xofs_node = jsfeat.cache.get_buffer((w*2*3)<<2);
 
             var buf = buf_node.f32;
             var sum = sum_node.f32;
+            var xofs = xofs_node.f32;
 
             for (; dx < nw; dx++) {
                 fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
@@ -1717,19 +2390,22 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 sx2 = Math.min(sx2, w - 1);
 
                 if(sx1 > fsx1) {
-                    xofs[xofs_count++] = {"si": ((sx1 - 1)*ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": (sx1 - fsx1) * scale};
+                    xofs_count++;
+                    xofs[k++] = ((sx1 - 1)*ch)|0;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (sx1 - fsx1) * scale;
                 }
                 for(sx = sx1; sx < sx2; sx++){
-                    xofs[xofs_count++] = {"si": (sx * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": scale};
+                    xofs_count++;
+                    xofs[k++] = (sx * ch)|0;
+                    xofs[k++] = (dx * ch)|0; 
+                    xofs[k++] = scale;
                 }
                 if(fsx2 - sx2 > 1e-3) {
-                    xofs[xofs_count++] = {"si": (sx2 * ch)|0, 
-                                          "di": (dx * ch)|0, 
-                                          "alpha": (fsx2 - sx2) * scale};
+                    xofs_count++;
+                    xofs[k++] = (sx2 * ch)|0;
+                    xofs[k++] = (dx * ch)|0;
+                    xofs[k++] = (fsx2 - sx2) * scale;
                 }
             }
 
@@ -1740,9 +2416,9 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
             for (sy = 0; sy < h; sy++) {
                 a = w * sy;
                 for (k = 0; k < xofs_count; k++) {
-                    dxn = xofs[k].di;
-                    alpha = xofs[k].alpha;
-                    sx1 = xofs[k].si;
+                    sx1 = xofs[k*3]|0;
+                    dxn = xofs[k*3+1]|0;
+                    alpha = xofs[k*3+2];
                     for (i = 0; i < ch; i++) {
                         buf[dxn + i] += src_d[a+sx1+i] * alpha;
                     }
@@ -1773,6 +2449,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
             }
             jsfeat.cache.put_buffer(sum_node);
             jsfeat.cache.put_buffer(buf_node);
+            jsfeat.cache.put_buffer(xofs_node);
         }
 
         var _convol_u8 = function(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel) {
@@ -2644,15 +3321,16 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 jsfeat.cache.put_buffer(map_node);
                 jsfeat.cache.put_buffer(stack_node);
             },
-
+            // transform is 3x3 matrix_t
             warp_perspective: function(src, dst, transform, fill_value) {
                 if (typeof fill_value === "undefined") { fill_value = 0; }
                 var src_width=src.cols, src_height=src.rows, dst_width=dst.cols, dst_height=dst.rows;
                 var src_d=src.data, dst_d=dst.data;
                 var x=0,y=0,off=0,ixs=0,iys=0,xs=0.0,ys=0.0,xs0=0.0,ys0=0.0,ws=0.0,sc=0.0,a=0.0,b=0.0,p0=0.0,p1=0.0;
-                var m00=transform[0],m01=transform[1],m02=transform[2],
-                    m10=transform[3],m11=transform[4],m12=transform[5],
-                    m20=transform[6],m21=transform[7],m22=transform[8];
+                var td=transform.data;
+                var m00=td[0],m01=td[1],m02=td[2],
+                    m10=td[3],m11=td[4],m12=td[5],
+                    m20=td[6],m21=td[7],m22=td[8];
 
                 for(var dptr = 0; y < dst_height; ++y) {
                     xs0 = m01 * y + m02,
@@ -2677,14 +3355,15 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                     }
                 }
             },
-
+            // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
             warp_affine: function(src, dst, transform, fill_value) {
                 if (typeof fill_value === "undefined") { fill_value = 0; }
                 var src_width=src.cols, src_height=src.rows, dst_width=dst.cols, dst_height=dst.rows;
                 var src_d=src.data, dst_d=dst.data;
                 var x=0,y=0,off=0,ixs=0,iys=0,xs=0.0,ys=0.0,a=0.0,b=0.0,p0=0.0,p1=0.0;
-                var m00=transform[0],m01=transform[1],m02=transform[2],
-                    m10=transform[3],m11=transform[4],m12=transform[5];
+                var td=transform.data;
+                var m00=td[0],m01=td[1],m02=td[2],
+                    m10=td[3],m11=td[4],m12=td[5];
 
                 for(var dptr = 0; y < dst_height; ++y) {
                     xs = m01 * y + m02;
@@ -2712,7 +3391,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.imgproc = imgproc;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3052,7 +3730,6 @@ The references are:
     fast_corners.set_threshold(20); // set default
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3148,7 +3825,6 @@ The references are:
     global.yape06 = yape06;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3803,7 +4479,6 @@ The references are:
     global.optical_flow_lk = optical_flow_lk;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -4094,7 +4769,6 @@ The references are:
     global.haar = haar;
 
 })(jsfeat);
-
 /**
  * BBF: Brightness Binary Feature
  *
@@ -4489,7 +5163,6 @@ The references are:
     global.bbf = bbf;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -4505,4 +5178,3 @@ The references are:
         module.exports = lib;
     }
 })(jsfeat);
-
