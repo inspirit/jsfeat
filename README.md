@@ -22,6 +22,11 @@ The project aim is to explore JS/HTML5 possibilities using modern & state-of-art
  * Cholesky solver
  * SVD decomposition, solver and pseudo-inverse
  * Eigen Vectors and Values
+* Multiview module
+ * Affine2D motion kernel
+ * Homography2D motion kernel
+ * RANSAC motion estimator
+ * LMEDS motion estimator
 * Matrix Math module for various matrix operation such as traspose, multiply etc.
 * Features 2D
  * Fast Corners feature detector ([Demo](http://inspirit.github.com/jsfeat/sample_fast_corners.html))
