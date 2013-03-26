@@ -1,0 +1,456 @@
+<!doctype html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="description" content="A JavaScript Computer Vision Library">
+        <meta name="author" content="Eugene Zatepyakin">
+        <title>JSFeat - JavaScript Computer Vision Library.</title>
+
+        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="css/bootstrap.css">
+        <link rel="stylesheet" href="css/jsfeat.css">
+
+        <script type="text/javascript">
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-36419199-1']);
+          _gaq.push(['_trackPageview']);
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+        </script>
+    </head>
+    <body>
+            <div style=" width:640px;height:480px;margin: 10px auto;">
+                <video id="webcam" style="display:none;"></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                <canvas id="webgl"></canvas>
+                <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
+                <div id="log" class="alert alert-info"></div>
+            </div>
+
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script type="text/javascript" src="js/jsfeat-min.js"></script>
+        <script type="text/javascript" src="js/profiler.js"></script>
+        <script type="text/javascript" src="js/gumwrapper.js"></script>
+        <script type="text/javascript" src="js/videostab/videostab.js"></script>
+        <script type="text/javascript" src="js/videostab/gauss_motion_filter.js"></script>
+        <script type="text/javascript" src="js/videostab/keypoint_motion_estimator.js"></script>
+        <script type="text/javascript" src="js/videostab/onepass_stabilizer.js"></script>
+
+        <script id="shader-fs" type="x-shader/x-fragment">
+            precision highp float;
+            varying vec2 vTextureCoord;
+            uniform sampler2D uSampler;
+            void main(void) {
+                gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.x, vTextureCoord.y));
+            }
+        </script>
+        <script id="shader-vs" type="x-shader/x-vertex">
+                attribute vec2 aVertexPosition;
+                attribute vec2 aTextureCoord;
+                uniform vec4 transform;
+                varying vec2 vTextureCoord;
+                void main(void) {
+                    gl_Position = vec4(transform.xy * aVertexPosition.xy + transform.zw, 0.0, 1.0);
+                    vTextureCoord = aTextureCoord;
+                }
+        </script>
+
+        <script type="text/javascript">
+
+        $(window).load(function() {
+            "use strict";
+
+            // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+            // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+
+            // requestAnimationFrame polyfill by Erik Möller
+            // fixes from Paul Irish and Tino Zijdel
+
+            ( function () {
+
+                var lastTime = 0;
+                var vendors = [ 'ms', 'moz', 'webkit', 'o' ];
+
+                for ( var x = 0; x < vendors.length && !window.requestAnimationFrame; ++ x ) {
+
+                    window.requestAnimationFrame = window[ vendors[ x ] + 'RequestAnimationFrame' ];
+                    window.cancelAnimationFrame = window[ vendors[ x ] + 'CancelAnimationFrame' ] || window[ vendors[ x ] + 'CancelRequestAnimationFrame' ];
+
+                }
+
+                if ( window.requestAnimationFrame === undefined ) {
+
+                    window.requestAnimationFrame = function ( callback ) {
+
+                        var currTime = Date.now(), timeToCall = Math.max( 0, 16 - ( currTime - lastTime ) );
+                        var id = window.setTimeout( function() { callback( currTime + timeToCall ); }, timeToCall );
+                        lastTime = currTime + timeToCall;
+                        return id;
+
+                    };
+
+                }
+
+                window.cancelAnimationFrame = window.cancelAnimationFrame || function ( id ) { window.clearTimeout( id ) };
+
+            }() );
+
+            (function() {
+                function showError(error) {
+                    $('#canvas').hide();
+                    $('#log').hide();
+                    $('#no_rtc').html('<h4>WebRTC not available.</h4>');
+                    $('#no_rtc').show();
+                }
+
+                var videoWidth=0, videoHeight=0;
+                var canvasWidth=0, canvasHeight=0;
+                var ctx;
+                var stabilizer, frame_grabber, motion_estimator;
+                var frameSize = new videostab.size_t(videoWidth, videoHeight);
+
+                var render_gl, tex0, tex1;
+
+                var video = document.getElementById('webcam');
+                var canvas = document.getElementById('canvas');
+                var canvas_gl = document.getElementById('webgl');
+                var stat_div = document.getElementById('log');
+
+                var stat = new profiler();
+
+                function videOK(video) {
+                    
+                    videoWidth = video.videoWidth;
+                    videoHeight = video.videoHeight;
+
+                    canvas.width = canvasWidth  = 640;
+                    canvas.height = canvasHeight = 480;
+                    ctx = canvas.getContext('2d');
+
+                    frameSize.width = canvasWidth;
+                    frameSize.height = canvasHeight;
+
+                    //motion_estimator = new videostab.keypoint_motion_estimator(videostab.MM_AFFINE, frameSize);
+                    motion_estimator = new videostab.keypoint_motion_estimator(videostab.MM_HOMOGRAPHY, frameSize);
+
+                    stabilizer = new videostab.onepass_stabilizer();
+                    stabilizer.motion_estimator = motion_estimator;
+
+                    if(haveWebGL()) {
+
+                        // switch off image generation
+                        stabilizer.doImage = false;
+
+                        render_gl = new renderGL(640, 480, canvas_gl);
+                        tex0 = render_gl.createAndSetupTexture();
+                        tex1 = render_gl.createAndSetupTexture();
+
+                        processGL();
+
+                    } else {
+
+                        canvas_gl.style.display = "none";
+                        video.style.display = canvas.style.display = "inline";
+                        video.width = canvas.width = canvasWidth = 320;
+                        video.height = canvas.height = canvasHeight = 240;
+
+                        frameSize.width = canvasWidth;
+                        frameSize.height = canvasHeight;
+
+                        motion_estimator = new videostab.keypoint_motion_estimator(videostab.MM_HOMOGRAPHY, frameSize);
+                        stabilizer.motion_estimator = motion_estimator;
+
+                        stabilizer.doImage = true;
+                        process();
+                    }
+                }
+
+                function haveWebGL() {
+                    try { return !! window.WebGLRenderingContext && !! document.createElement( 'canvas' ).getContext( 'experimental-webgl' ); } catch( e ) { return false; }
+                }
+
+                function processGL(){
+                    requestAnimationFrame( processGL );
+
+                    stat.new_frame();
+
+                    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+                    var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+
+                    var motion = stabilizer.next_stabilized_frame(imageData);
+
+                    render_gl.render();
+
+                    var corns = tCorners(motion.data, canvasWidth, canvasHeight);
+
+                    render_gl.render_images(tex1, tex0, stabilizer.preProcessedFrame, video, canvasWidth, canvasHeight, corns);
+
+                    $('#log').html(stat.log());
+                }
+
+                var tCorners = function(M, w, h) {
+                    var pt = [ {'x':0,'y':0}, {'x':w,'y':0}, {'x':w,'y':h}, {'x':0,'y':h} ];
+                    var z=0.0, i=0, px=0.0, py=0.0;
+
+                    for (; i < 4; ++i) {
+                        px = M[0]*pt[i].x + M[1]*pt[i].y + M[2];
+                        py = M[3]*pt[i].x + M[4]*pt[i].y + M[5];
+                        z = M[6]*pt[i].x + M[7]*pt[i].y + M[8];
+                        pt[i].x = px/z;
+                        pt[i].y = py/z;
+                    }
+
+                    return pt;
+                }
+
+                function process() {
+
+                    requestAnimationFrame( process );
+
+                    stat.new_frame();
+
+                    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+                    var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+
+                    var img = stabilizer.next_stabilized_frame(imageData);
+
+                    // render result back to canvas
+                    var data_u32 = new Uint32Array(imageData.data.buffer);
+                    var alpha = (0xff << 24);
+                    var i = img.cols*img.rows, pix = 0;
+                    while(--i >= 0) {
+                        pix = img.data[i];
+                        data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+                    //
+
+                    $('#log').html(stat.log());
+                }
+
+                var gum = new GumWrapper({video: 'webcam'}, videOK, showError);
+                gum.play();
+
+
+                ////////////////////////////////////// GL RENDER
+                var renderGL = (function () {
+
+                    function renderGL(w, h, view) {
+                        this.width = w || 640;
+                        this.height = h || 480;
+
+                        this.view = view || document.createElement( 'canvas' ); 
+                        this.view.width = this.width;
+                        this.view.height = this.height;  
+                        this.view.background = "#00FF00";
+
+                        this.gl = this.view.getContext("experimental-webgl", { alpha: false });
+
+                        this.worldMatrix = new Float32Array([
+                                2.0/this.width, -2.0/this.height, -1.0, 1.0
+                                ]);
+
+                        this.gl.viewport(0, 0, this.width, this.height);
+
+                        this.initShaders();
+
+                        this.gl.disable(this.gl.DEPTH_TEST);
+                        this.gl.disable(this.gl.BLEND);
+                    };
+
+                    renderGL.prototype.render = function() {
+                        var gl = this.gl;
+
+                        gl.clear(gl.COLOR_BUFFER_BIT);
+                        gl.clearColor(0, 0, 0, 1.0);
+
+                        gl.uniform4f(this.shaderProgram.transformUniform, 
+                                        this.worldMatrix[0], 
+                                        this.worldMatrix[1], 
+                                        this.worldMatrix[2],
+                                        this.worldMatrix[3]);
+                    };
+
+                    renderGL.prototype.initShaders = function() {
+                        var gl = this.gl;
+                        var fragmentShader = this.getShader(gl, "shader-fs");
+                        var vertexShader = this.getShader(gl, "shader-vs");
+                         
+                        // Create the shader program
+                           
+                        var shaderProgram = this.shaderProgram = gl.createProgram();
+                        gl.attachShader(shaderProgram, vertexShader);
+                        gl.attachShader(shaderProgram, fragmentShader);
+                        gl.linkProgram(shaderProgram);
+                           
+                        // If creating the shader program failed, alert
+                           
+                        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                            alert("Unable to initialize the shader program.");
+                        }
+                           
+                        gl.useProgram(shaderProgram);
+                         
+                        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+                        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+                        shaderProgram.textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord");
+                        gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
+
+                        shaderProgram.transformUniform = gl.getUniformLocation(shaderProgram, "transform");
+                        shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
+                    }
+
+                    renderGL.prototype.getShader = function(gl, id) {
+                        var shaderScript, theSource, currentChild, shader;
+                        shaderScript = document.getElementById(id);
+
+                        if (!shaderScript) {
+                            return null;
+                        }
+
+                        theSource = "";
+                        currentChild = shaderScript.firstChild;
+
+                        while(currentChild) {
+                            if (currentChild.nodeType == currentChild.TEXT_NODE) {
+                                theSource += currentChild.textContent;
+                            }
+                            currentChild = currentChild.nextSibling;
+                        }
+
+                        if (shaderScript.type == "x-shader/x-fragment") {
+                            shader = gl.createShader(gl.FRAGMENT_SHADER);
+                        } else if (shaderScript.type == "x-shader/x-vertex") {
+                            shader = gl.createShader(gl.VERTEX_SHADER);
+                        } else {
+                            // Unknown shader type
+                            return null;
+                        }
+                        gl.shaderSource(shader, theSource);
+             
+                        // Compile the shader program
+                        gl.compileShader(shader);  
+
+                        // See if it compiled successfully
+                        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {  
+                            alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));  
+                            return null;  
+                        }
+
+                        return shader;
+                    }
+
+                    renderGL.prototype.createAndSetupTexture = function() {
+                        var gl = this.gl;
+                        var texture = gl.createTexture();
+                        gl.bindTexture(gl.TEXTURE_2D, texture);
+
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+                        gl.bindTexture(gl.TEXTURE_2D, null);
+
+                        return texture;
+                    };
+
+                    renderGL.prototype.setRectangle = function(x, y, width, height) {
+                        var gl = this.gl;
+                        var x2 = x + width;
+                        var y2 = y + height;
+                        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(
+                                                            [x, y,
+                                                             x2, y,
+                                                             x, y2,
+                                                             x, y2,
+                                                             x2, y,
+                                                             x2, y2
+                                                            ]), gl.STATIC_DRAW);
+                    }
+
+                    renderGL.prototype.setCorners = function(tlx, tly, trx, _try, brx, bry, blx, bly) {
+                        var gl = this.gl;
+                        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(
+                                                            [tlx, tly, 
+                                                             trx, _try,
+                                                             blx, bly,
+                                                             blx, bly,
+                                                             trx, _try,
+                                                             brx, bry
+                                                            ]), gl.STATIC_DRAW);
+                    }
+
+                    renderGL.prototype.render_images = function(tex_id0, tex_id1, image0, image1, w, h, p) {
+                        var gl = this.gl;
+                        var shaderProgram = this.shaderProgram;
+
+                        gl.bindTexture(gl.TEXTURE_2D, tex_id0);
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image0);
+
+                        // draw stabilized first
+                        var texCoordBuffer = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+
+                        gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
+                        gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+                        this.setRectangle(0, 0, 1, 1);
+
+                        var buffer = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+                        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+                        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+                        this.setCorners(p[0].x, p[0].y, p[1].x, p[1].y,
+                                        p[2].x, p[2].y, p[3].x, p[3].y);
+
+                        // draw
+                        gl.drawArrays(gl.TRIANGLES, 0, 6);
+                        gl.bindTexture(gl.TEXTURE_2D, null);
+                        //
+
+                        // now half of original
+
+                        gl.bindTexture(gl.TEXTURE_2D, tex_id1);
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image1);
+
+                        texCoordBuffer = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+
+                        gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
+                        gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+                        this.setRectangle(0, 0, 0.5, 1);
+
+                        buffer = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+                        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+                        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+                        this.setRectangle(0, 0, w/2, h);
+
+                        // draw
+                        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                        gl.bindTexture(gl.TEXTURE_2D, null);
+                    }
+
+                    return renderGL;
+
+                })();
+
+
+            })();
+            
+        });
+        </script>
+    </body>
+</html>
