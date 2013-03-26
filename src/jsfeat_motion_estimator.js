@@ -74,20 +74,22 @@
 		    }
 		    return false;
 		}
+
+		var T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+    	var T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+    	var AtA = new jsfeat.matrix_t(6, 6, jsfeat.F32_t|jsfeat.C1_t);
+    	var AtB = new jsfeat.matrix_t(6, 1, jsfeat.F32_t|jsfeat.C1_t);
     	
     	var affine2d = (function () {
 
 	        function affine2d() {
-	        	this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.AtA = new jsfeat.matrix_t(6, 6, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.AtB = new jsfeat.matrix_t(6, 1, jsfeat.F32_t|jsfeat.C1_t);
+	        	// empty constructor
 	        }
 
 	        affine2d.prototype.run = function(from, to, model, count) {
 	        	var i=0,j=0;
 	        	var dt=model.type|jsfeat.C1_t;
-	        	var md=model.data, t0d=this.T0.data, t1d=this.T1.data;
+	        	var md=model.data, t0d=T0.data, t1d=T1.data;
 	        	var pt0,pt1,px=0.0,py=0.0;
 
 	            iso_normalize_points(from, to, t0d, t1d, count);
@@ -116,19 +118,19 @@
 			        bd[(i<<1)+1] = t1d[3]*pt1.x + t1d[4]*pt1.y + t1d[5];
 			    }
 
-			    jsfeat.matmath.multiply_AtA(this.AtA, a_mt);
-			    jsfeat.matmath.multiply_AtB(this.AtB, a_mt, b_mt);
+			    jsfeat.matmath.multiply_AtA(AtA, a_mt);
+			    jsfeat.matmath.multiply_AtB(AtB, a_mt, b_mt);
 
-			    jsfeat.linalg.lu_solve(this.AtA, this.AtB);
+			    jsfeat.linalg.lu_solve(AtA, AtB);
 
-			    md[0] = this.AtB.data[0], md[1]=this.AtB.data[1], md[2]=this.AtB.data[2];
-			    md[3] = this.AtB.data[3], md[4]=this.AtB.data[4], md[5]=this.AtB.data[5];
+			    md[0] = AtB.data[0], md[1]=AtB.data[1], md[2]=AtB.data[2];
+			    md[3] = AtB.data[3], md[4]=AtB.data[4], md[5]=AtB.data[5];
 			    md[6] = 0.0, md[7] = 0.0, md[8] = 1.0; // fill last row
 
 			    // denormalize
-			    jsfeat.matmath.invert_3x3(this.T1, this.T1);
-			    jsfeat.matmath.multiply_3x3(model, this.T1, model);
-			    jsfeat.matmath.multiply_3x3(model, model, this.T0);
+			    jsfeat.matmath.invert_3x3(T1, T1);
+			    jsfeat.matmath.multiply_3x3(model, T1, model);
+			    jsfeat.matmath.multiply_3x3(model, model, T0);
 
 			    // free buffer
 			    jsfeat.cache.put_buffer(a_buff);
@@ -158,19 +160,23 @@
 	        return affine2d;
 	    })();
 
+	    var mLtL = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	    var Evec = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+
 	    var homography2d = (function () {
 
 	        function homography2d() {
-	        	this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.mLtL = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.Evec = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	        	// empty constructor
+	        	//this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	//this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	//this.mLtL = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	        	//this.Evec = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
 	        }
 
 	        homography2d.prototype.run = function(from, to, model, count) {
 	        	var i=0,j=0;
-	        	var md=model.data, t0d=this.T0.data, t1d=this.T1.data;
-	        	var LtL=this.mLtL.data, evd=this.Evec.data;
+	        	var md=model.data, t0d=T0.data, t1d=T1.data;
+	        	var LtL=mLtL.data, evd=Evec.data;
 	        	var x=0.0,y=0.0,X=0.0,Y=0.0;
 
 			    // norm
@@ -270,15 +276,15 @@
 			            LtL[i*9+j] = LtL[j*9+i];
 			    }
 
-				jsfeat.linalg.eigenVV(this.mLtL, this.Evec);
+				jsfeat.linalg.eigenVV(mLtL, Evec);
 
 				md[0]=evd[72], md[1]=evd[73], md[2]=evd[74];
 			    md[3]=evd[75], md[4]=evd[76], md[5]=evd[77];
 			    md[6]=evd[78], md[7]=evd[79], md[8]=evd[80];
 
 				// denormalize
-			    jsfeat.matmath.multiply_3x3(model, this.T1, model);
-			    jsfeat.matmath.multiply_3x3(model, model, this.T0);
+			    jsfeat.matmath.multiply_3x3(model, T1, model);
+			    jsfeat.matmath.multiply_3x3(model, model, T0);
 
 			    // set bottom right to 1.0
 			    x = 1.0/md[8];
@@ -451,7 +457,7 @@
 
 		    for(; i < count; ++i) {
 		        f = err[i] <= t;
-		        mask[i] = f|0;
+		        mask[i] = f;
 		        numinliers += f;
 		    }
 		    return numinliers;
@@ -479,7 +485,7 @@
 			    var ms_buff = jsfeat.cache.get_buffer(count);
 			    var err_buff = jsfeat.cache.get_buffer(count<<2);
 			    var M = new jsfeat.matrix_t(mc, mr, dt, m_buff.data);
-			    var curr_mask = new jsfeat.matrix_t(count, 1, jsfeat.U8_t|jsfeat.C1_t, ms_buff.data);
+			    var curr_mask = new jsfeat.matrix_t(count, 1, jsfeat.U8C1_t, ms_buff.data);
 
 			    var inliers_max = -1, numinliers=0;
 			    var nmodels = 0;
@@ -626,7 +632,7 @@
 			    }
 
 			    if(result) {
-			        sigma = 2.5*1.4826*(1 + 5.0/(count - model_points))*Math.sqrt(minMedian);
+			        sigma = 2.5*1.4826*(1 + 5.0/(count - model_points))*Math.sqrt(min_median);
 			        sigma = Math.max(sigma, 0.001);
 
 			        numinliers = find_inliers(kernel, model, from, to, count, sigma, err, curr_mask.data);

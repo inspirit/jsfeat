@@ -30,9 +30,11 @@
                 var deriv_iwin_node = jsfeat.cache.get_buffer(win_area2<<2);
                 var deriv_lev_node = jsfeat.cache.get_buffer((h0*(w0<<1))<<2);
 
-                var iwin_buf = iwin_node.i32;//new Int32Array(win_area);
-                var deriv_iwin = deriv_iwin_node.i32;//new Int32Array(win_area2);
-                var deriv_lev = deriv_lev_node.i32;//deriv_m.data;
+                var deriv_m = new jsfeat.matrix_t(w0, h0, jsfeat.S32C2_t, deriv_lev_node.data);
+
+                var iwin_buf = iwin_node.i32;
+                var deriv_iwin = deriv_iwin_node.i32;
+                var deriv_lev = deriv_lev_node.i32;
 
                 var dstep=0,src=0,dsrc=0,iptr=0,diptr=0,jptr=0;
                 var lev_sc=0.0,prev_x=0.0,prev_y=0.0,next_x=0.0,next_y=0.0;
@@ -76,7 +78,7 @@
                     brd_b = (lh - win_size)|0;
 
                     // calculate level derivatives
-                    scharr_deriv(prev_imgs[level], deriv_lev);
+                    scharr_deriv(prev_imgs[level], deriv_m);
 
                     // iterate through points
                     for(ptid = 0; ptid < count; ++ptid) {

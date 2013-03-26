@@ -4,6 +4,7 @@
 
 // namespace ?
 var jsfeat = jsfeat || { REVISION: 'ALPHA' };
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -97,10 +98,16 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
             this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
         matrix_t.prototype.copy_to = function(other) {
-            var od = other.data;
-            var i = this.cols*this.rows*this.channel;
-            while(--i >= 0) {
-                od[i] = this.data[i];
+            var od = other.data, td = this.data;
+            var i = 0, n = (this.cols*this.rows*this.channel)|0;
+            for(; i < n-4; i+=4) {
+                od[i] = td[i];
+                od[i+1] = td[i+1];
+                od[i+2] = td[i+2];
+                od[i+3] = td[i+3];
+            }
+            for(; i < n; ++i) {
+                od[i] = td[i];
             }
         }
         matrix_t.prototype.resize = function(c, r, ch) {
@@ -187,6 +194,16 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.C3_t = C3_t;
     global.C4_t = C4_t;
 
+    // popular formats
+    global.U8C1_t = U8_t | C1_t;
+    global.U8C3_t = U8_t | C3_t;
+    global.U8C4_t = U8_t | C4_t;
+
+    global.F32C1_t = F32_t | C1_t;
+    global.F32C2_t = F32_t | C2_t;
+    global.S32C1_t = S32_t | C1_t;
+    global.S32C2_t = S32_t | C2_t;
+
     // constants
     global.EPSILON = EPSILON;
     global.FLT_MIN = FLT_MIN;
@@ -206,6 +223,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.point2d_t = point2d_t;
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -285,6 +303,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     cache.allocate(30, 640*4);
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -699,6 +718,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.math = math;
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -711,6 +731,21 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     var matmath = (function() {
         
         return {
+            identity: function(M, value) {
+                if (typeof value === "undefined") { value=1; }
+                var src=M.data;
+                var rows=M.rows, cols=M.cols, cols_1=(cols+1)|0;
+                var len = rows * cols;
+                var k = len;
+                while(--len >= 0) src[len] = 0.0;
+                len = k;
+                k = 0;
+                while(k < len)  {
+                    src[k] = value;
+                    k = k + cols_1;
+                }
+            },
+
             transpose: function(At, A) {
                 var i=0,j=0,nrows=A.rows,ncols=A.cols;
                 var Ai=0,Ati=0,pAt=0;
@@ -834,6 +869,14 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
             },
 
             // various small matrix operations
+            identity_3x3: function(M, value) {
+                if (typeof value === "undefined") { value=1; }
+                var dt=M.data;
+                dt[0] = dt[4] = dt[8] = value;
+                dt[1] = dt[2] = dt[3] = 0;
+                dt[5] = dt[6] = dt[7] = 0;
+            },
+
             invert_3x3: function(from, to) {
                 var A = from.data, invA = to.data;
                 var t1 = A[4];
@@ -1692,20 +1735,22 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 		    }
 		    return false;
 		}
+
+		var T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+    	var T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+    	var AtA = new jsfeat.matrix_t(6, 6, jsfeat.F32_t|jsfeat.C1_t);
+    	var AtB = new jsfeat.matrix_t(6, 1, jsfeat.F32_t|jsfeat.C1_t);
     	
     	var affine2d = (function () {
 
 	        function affine2d() {
-	        	this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.AtA = new jsfeat.matrix_t(6, 6, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.AtB = new jsfeat.matrix_t(6, 1, jsfeat.F32_t|jsfeat.C1_t);
+	        	// empty constructor
 	        }
 
 	        affine2d.prototype.run = function(from, to, model, count) {
 	        	var i=0,j=0;
 	        	var dt=model.type|jsfeat.C1_t;
-	        	var md=model.data, t0d=this.T0.data, t1d=this.T1.data;
+	        	var md=model.data, t0d=T0.data, t1d=T1.data;
 	        	var pt0,pt1,px=0.0,py=0.0;
 
 	            iso_normalize_points(from, to, t0d, t1d, count);
@@ -1734,19 +1779,19 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 			        bd[(i<<1)+1] = t1d[3]*pt1.x + t1d[4]*pt1.y + t1d[5];
 			    }
 
-			    jsfeat.matmath.multiply_AtA(this.AtA, a_mt);
-			    jsfeat.matmath.multiply_AtB(this.AtB, a_mt, b_mt);
+			    jsfeat.matmath.multiply_AtA(AtA, a_mt);
+			    jsfeat.matmath.multiply_AtB(AtB, a_mt, b_mt);
 
-			    jsfeat.linalg.lu_solve(this.AtA, this.AtB);
+			    jsfeat.linalg.lu_solve(AtA, AtB);
 
-			    md[0] = this.AtB.data[0], md[1]=this.AtB.data[1], md[2]=this.AtB.data[2];
-			    md[3] = this.AtB.data[3], md[4]=this.AtB.data[4], md[5]=this.AtB.data[5];
+			    md[0] = AtB.data[0], md[1]=AtB.data[1], md[2]=AtB.data[2];
+			    md[3] = AtB.data[3], md[4]=AtB.data[4], md[5]=AtB.data[5];
 			    md[6] = 0.0, md[7] = 0.0, md[8] = 1.0; // fill last row
 
 			    // denormalize
-			    jsfeat.matmath.invert_3x3(this.T1, this.T1);
-			    jsfeat.matmath.multiply_3x3(model, this.T1, model);
-			    jsfeat.matmath.multiply_3x3(model, model, this.T0);
+			    jsfeat.matmath.invert_3x3(T1, T1);
+			    jsfeat.matmath.multiply_3x3(model, T1, model);
+			    jsfeat.matmath.multiply_3x3(model, model, T0);
 
 			    // free buffer
 			    jsfeat.cache.put_buffer(a_buff);
@@ -1776,19 +1821,23 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 	        return affine2d;
 	    })();
 
+	    var mLtL = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	    var Evec = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+
 	    var homography2d = (function () {
 
 	        function homography2d() {
-	        	this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.mLtL = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
-	        	this.Evec = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	        	// empty constructor
+	        	//this.T0 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	//this.T1 = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
+	        	//this.mLtL = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
+	        	//this.Evec = new jsfeat.matrix_t(9, 9, jsfeat.F32_t|jsfeat.C1_t);
 	        }
 
 	        homography2d.prototype.run = function(from, to, model, count) {
 	        	var i=0,j=0;
-	        	var md=model.data, t0d=this.T0.data, t1d=this.T1.data;
-	        	var LtL=this.mLtL.data, evd=this.Evec.data;
+	        	var md=model.data, t0d=T0.data, t1d=T1.data;
+	        	var LtL=mLtL.data, evd=Evec.data;
 	        	var x=0.0,y=0.0,X=0.0,Y=0.0;
 
 			    // norm
@@ -1888,15 +1937,15 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 			            LtL[i*9+j] = LtL[j*9+i];
 			    }
 
-				jsfeat.linalg.eigenVV(this.mLtL, this.Evec);
+				jsfeat.linalg.eigenVV(mLtL, Evec);
 
 				md[0]=evd[72], md[1]=evd[73], md[2]=evd[74];
 			    md[3]=evd[75], md[4]=evd[76], md[5]=evd[77];
 			    md[6]=evd[78], md[7]=evd[79], md[8]=evd[80];
 
 				// denormalize
-			    jsfeat.matmath.multiply_3x3(model, this.T1, model);
-			    jsfeat.matmath.multiply_3x3(model, model, this.T0);
+			    jsfeat.matmath.multiply_3x3(model, T1, model);
+			    jsfeat.matmath.multiply_3x3(model, model, T0);
 
 			    // set bottom right to 1.0
 			    x = 1.0/md[8];
@@ -2069,7 +2118,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 
 		    for(; i < count; ++i) {
 		        f = err[i] <= t;
-		        mask[i] = f|0;
+		        mask[i] = f;
 		        numinliers += f;
 		    }
 		    return numinliers;
@@ -2097,7 +2146,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 			    var ms_buff = jsfeat.cache.get_buffer(count);
 			    var err_buff = jsfeat.cache.get_buffer(count<<2);
 			    var M = new jsfeat.matrix_t(mc, mr, dt, m_buff.data);
-			    var curr_mask = new jsfeat.matrix_t(count, 1, jsfeat.U8_t|jsfeat.C1_t, ms_buff.data);
+			    var curr_mask = new jsfeat.matrix_t(count, 1, jsfeat.U8C1_t, ms_buff.data);
 
 			    var inliers_max = -1, numinliers=0;
 			    var nmodels = 0;
@@ -2244,7 +2293,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
 			    }
 
 			    if(result) {
-			        sigma = 2.5*1.4826*(1 + 5.0/(count - model_points))*Math.sqrt(minMedian);
+			        sigma = 2.5*1.4826*(1 + 5.0/(count - model_points))*Math.sqrt(min_median);
 			        sigma = Math.max(sigma, 0.001);
 
 			        numinliers = find_inliers(kernel, model, from, to, count, sigma, err, curr_mask.data);
@@ -2269,6 +2318,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.motion_estimator = motion_estimator;
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -2908,7 +2958,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 var dstep = w<<1,x=0,y=0,x1=0,a,b,c,d,e,f;
                 var srow0=0,srow1=0,srow2=0,drow=0;
                 var trow0,trow1;
-                var img = src.data;
+                var img = src.data, gxgy=dst.data;
 
                 var buf0_node = jsfeat.cache.get_buffer((w+2)<<2);
                 var buf1_node = jsfeat.cache.get_buffer((w+2)<<2);
@@ -2948,19 +2998,19 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                     for(x = 0; x <= w-4; x+=4) {
                         a = trow1[x+2], b = trow1[x+1], c = trow1[x+3], d = trow1[x+4],
                         e = trow0[x+2], f = trow0[x+3];
-                        dst[drow++] = ( e - trow0[x] );
-                        dst[drow++] = ( (a + trow1[x])*3 + b*10 );
-                        dst[drow++] = ( f - trow0[x+1] );
-                        dst[drow++] = ( (c + b)*3 + a*10 );
+                        gxgy[drow++] = ( e - trow0[x] );
+                        gxgy[drow++] = ( (a + trow1[x])*3 + b*10 );
+                        gxgy[drow++] = ( f - trow0[x+1] );
+                        gxgy[drow++] = ( (c + b)*3 + a*10 );
 
-                        dst[drow++] = ( (trow0[x+4] - e) );
-                        dst[drow++] = ( ((d + a)*3 + c*10) );
-                        dst[drow++] = ( (trow0[x+5] - f) );
-                        dst[drow++] = ( ((trow1[x+5] + c)*3 + d*10) );
+                        gxgy[drow++] = ( (trow0[x+4] - e) );
+                        gxgy[drow++] = ( ((d + a)*3 + c*10) );
+                        gxgy[drow++] = ( (trow0[x+5] - f) );
+                        gxgy[drow++] = ( ((trow1[x+5] + c)*3 + d*10) );
                     }
                     for(; x < w; ++x) {
-                        dst[drow++] = ( (trow0[x+2] - trow0[x]) );
-                        dst[drow++] = ( ((trow1[x+2] + trow1[x])*3 + trow1[x+1]*10) );
+                        gxgy[drow++] = ( (trow0[x+2] - trow0[x]) );
+                        gxgy[drow++] = ( ((trow1[x+2] + trow1[x])*3 + trow1[x+1]*10) );
                     }
                 }
                 jsfeat.cache.put_buffer(buf0_node);
@@ -2974,7 +3024,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 var dstep = w<<1,x=0,y=0,x1=0,a,b,c,d,e,f;
                 var srow0=0,srow1=0,srow2=0,drow=0;
                 var trow0,trow1;
-                var img = src.data;
+                var img = src.data, gxgy=dst.data;
 
                 var buf0_node = jsfeat.cache.get_buffer((w+2)<<2);
                 var buf1_node = jsfeat.cache.get_buffer((w+2)<<2);
@@ -3014,19 +3064,19 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                     for(x = 0; x <= w-4; x+=4) {
                         a = trow1[x+2], b = trow1[x+1], c = trow1[x+3], d = trow1[x+4],
                         e = trow0[x+2], f = trow0[x+3];
-                        dst[drow++] = ( e - trow0[x] );
-                        dst[drow++] = ( a + trow1[x] + b*2 );
-                        dst[drow++] = ( f - trow0[x+1] );
-                        dst[drow++] = ( c + b + a*2 );
+                        gxgy[drow++] = ( e - trow0[x] );
+                        gxgy[drow++] = ( a + trow1[x] + b*2 );
+                        gxgy[drow++] = ( f - trow0[x+1] );
+                        gxgy[drow++] = ( c + b + a*2 );
 
-                        dst[drow++] = ( trow0[x+4] - e );
-                        dst[drow++] = ( d + a + c*2 );
-                        dst[drow++] = ( trow0[x+5] - f );
-                        dst[drow++] = ( trow1[x+5] + c + d*2 );
+                        gxgy[drow++] = ( trow0[x+4] - e );
+                        gxgy[drow++] = ( d + a + c*2 );
+                        gxgy[drow++] = ( trow0[x+5] - f );
+                        gxgy[drow++] = ( trow1[x+5] + c + d*2 );
                     }
                     for(; x < w; ++x) {
-                        dst[drow++] = ( trow0[x+2] - trow0[x] );
-                        dst[drow++] = ( trow1[x+2] + trow1[x] + trow1[x+1]*2 );
+                        gxgy[drow++] = ( trow0[x+2] - trow0[x] );
+                        gxgy[drow++] = ( trow1[x+2] + trow1[x] + trow1[x+1]*2 );
                     }
                 }
                 jsfeat.cache.put_buffer(buf0_node);
@@ -3324,7 +3374,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
             // transform is 3x3 matrix_t
             warp_perspective: function(src, dst, transform, fill_value) {
                 if (typeof fill_value === "undefined") { fill_value = 0; }
-                var src_width=src.cols, src_height=src.rows, dst_width=dst.cols, dst_height=dst.rows;
+                var src_width=src.cols|0, src_height=src.rows|0, dst_width=dst.cols|0, dst_height=dst.rows|0;
                 var src_d=src.data, dst_d=dst.data;
                 var x=0,y=0,off=0,ixs=0,iys=0,xs=0.0,ys=0.0,xs0=0.0,ys0=0.0,ws=0.0,sc=0.0,a=0.0,b=0.0,p0=0.0,p1=0.0;
                 var td=transform.data;
@@ -3344,7 +3394,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                         if(xs > 0 && ys > 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
                             a = Math.max(xs - ixs, 0.0);
                             b = Math.max(ys - iys, 0.0);
-                            off = src_width*iys + ixs;
+                            off = (src_width*iys + ixs)|0;
 
                             p0 = src_d[off] +  a * (src_d[off+1] - src_d[off]);
                             p1 = src_d[off+src_width] + a * (src_d[off+src_width+1] - src_d[off+src_width]);
@@ -3391,6 +3441,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.imgproc = imgproc;
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3730,6 +3781,7 @@ The references are:
     fast_corners.set_threshold(20); // set default
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3825,6 +3877,7 @@ The references are:
     global.yape06 = yape06;
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -4267,9 +4320,11 @@ The references are:
                 var deriv_iwin_node = jsfeat.cache.get_buffer(win_area2<<2);
                 var deriv_lev_node = jsfeat.cache.get_buffer((h0*(w0<<1))<<2);
 
-                var iwin_buf = iwin_node.i32;//new Int32Array(win_area);
-                var deriv_iwin = deriv_iwin_node.i32;//new Int32Array(win_area2);
-                var deriv_lev = deriv_lev_node.i32;//deriv_m.data;
+                var deriv_m = new jsfeat.matrix_t(w0, h0, jsfeat.S32C2_t, deriv_lev_node.data);
+
+                var iwin_buf = iwin_node.i32;
+                var deriv_iwin = deriv_iwin_node.i32;
+                var deriv_lev = deriv_lev_node.i32;
 
                 var dstep=0,src=0,dsrc=0,iptr=0,diptr=0,jptr=0;
                 var lev_sc=0.0,prev_x=0.0,prev_y=0.0,next_x=0.0,next_y=0.0;
@@ -4313,7 +4368,7 @@ The references are:
                     brd_b = (lh - win_size)|0;
 
                     // calculate level derivatives
-                    scharr_deriv(prev_imgs[level], deriv_lev);
+                    scharr_deriv(prev_imgs[level], deriv_m);
 
                     // iterate through points
                     for(ptid = 0; ptid < count; ++ptid) {
@@ -4479,6 +4534,7 @@ The references are:
     global.optical_flow_lk = optical_flow_lk;
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -4769,6 +4825,7 @@ The references are:
     global.haar = haar;
 
 })(jsfeat);
+
 /**
  * BBF: Brightness Binary Feature
  *
@@ -5163,6 +5220,7 @@ The references are:
     global.bbf = bbf;
 
 })(jsfeat);
+
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -5178,3 +5236,4 @@ The references are:
         module.exports = lib;
     }
 })(jsfeat);
+

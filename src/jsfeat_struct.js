@@ -91,10 +91,16 @@
             this.data = this.type&U8_t ? this.buffer.u8 : (this.type&S32_t ? this.buffer.i32 : (this.type&F32_t ? this.buffer.f32 : this.buffer.f64));
         }
         matrix_t.prototype.copy_to = function(other) {
-            var od = other.data;
-            var i = this.cols*this.rows*this.channel;
-            while(--i >= 0) {
-                od[i] = this.data[i];
+            var od = other.data, td = this.data;
+            var i = 0, n = (this.cols*this.rows*this.channel)|0;
+            for(; i < n-4; i+=4) {
+                od[i] = td[i];
+                od[i+1] = td[i+1];
+                od[i+2] = td[i+2];
+                od[i+3] = td[i+3];
+            }
+            for(; i < n; ++i) {
+                od[i] = td[i];
             }
         }
         matrix_t.prototype.resize = function(c, r, ch) {
@@ -180,6 +186,16 @@
     global.C2_t = C2_t;
     global.C3_t = C3_t;
     global.C4_t = C4_t;
+
+    // popular formats
+    global.U8C1_t = U8_t | C1_t;
+    global.U8C3_t = U8_t | C3_t;
+    global.U8C4_t = U8_t | C4_t;
+
+    global.F32C1_t = F32_t | C1_t;
+    global.F32C2_t = F32_t | C2_t;
+    global.S32C1_t = S32_t | C1_t;
+    global.S32C2_t = S32_t | C2_t;
 
     // constants
     global.EPSILON = EPSILON;
