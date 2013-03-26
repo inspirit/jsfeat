@@ -637,7 +637,7 @@
                 var dstep = w<<1,x=0,y=0,x1=0,a,b,c,d,e,f;
                 var srow0=0,srow1=0,srow2=0,drow=0;
                 var trow0,trow1;
-                var img = src.data;
+                var img = src.data, gxgy=dst.data;
 
                 var buf0_node = jsfeat.cache.get_buffer((w+2)<<2);
                 var buf1_node = jsfeat.cache.get_buffer((w+2)<<2);
@@ -677,19 +677,19 @@
                     for(x = 0; x <= w-4; x+=4) {
                         a = trow1[x+2], b = trow1[x+1], c = trow1[x+3], d = trow1[x+4],
                         e = trow0[x+2], f = trow0[x+3];
-                        dst[drow++] = ( e - trow0[x] );
-                        dst[drow++] = ( (a + trow1[x])*3 + b*10 );
-                        dst[drow++] = ( f - trow0[x+1] );
-                        dst[drow++] = ( (c + b)*3 + a*10 );
+                        gxgy[drow++] = ( e - trow0[x] );
+                        gxgy[drow++] = ( (a + trow1[x])*3 + b*10 );
+                        gxgy[drow++] = ( f - trow0[x+1] );
+                        gxgy[drow++] = ( (c + b)*3 + a*10 );
 
-                        dst[drow++] = ( (trow0[x+4] - e) );
-                        dst[drow++] = ( ((d + a)*3 + c*10) );
-                        dst[drow++] = ( (trow0[x+5] - f) );
-                        dst[drow++] = ( ((trow1[x+5] + c)*3 + d*10) );
+                        gxgy[drow++] = ( (trow0[x+4] - e) );
+                        gxgy[drow++] = ( ((d + a)*3 + c*10) );
+                        gxgy[drow++] = ( (trow0[x+5] - f) );
+                        gxgy[drow++] = ( ((trow1[x+5] + c)*3 + d*10) );
                     }
                     for(; x < w; ++x) {
-                        dst[drow++] = ( (trow0[x+2] - trow0[x]) );
-                        dst[drow++] = ( ((trow1[x+2] + trow1[x])*3 + trow1[x+1]*10) );
+                        gxgy[drow++] = ( (trow0[x+2] - trow0[x]) );
+                        gxgy[drow++] = ( ((trow1[x+2] + trow1[x])*3 + trow1[x+1]*10) );
                     }
                 }
                 jsfeat.cache.put_buffer(buf0_node);
@@ -703,7 +703,7 @@
                 var dstep = w<<1,x=0,y=0,x1=0,a,b,c,d,e,f;
                 var srow0=0,srow1=0,srow2=0,drow=0;
                 var trow0,trow1;
-                var img = src.data;
+                var img = src.data, gxgy=dst.data;
 
                 var buf0_node = jsfeat.cache.get_buffer((w+2)<<2);
                 var buf1_node = jsfeat.cache.get_buffer((w+2)<<2);
@@ -743,19 +743,19 @@
                     for(x = 0; x <= w-4; x+=4) {
                         a = trow1[x+2], b = trow1[x+1], c = trow1[x+3], d = trow1[x+4],
                         e = trow0[x+2], f = trow0[x+3];
-                        dst[drow++] = ( e - trow0[x] );
-                        dst[drow++] = ( a + trow1[x] + b*2 );
-                        dst[drow++] = ( f - trow0[x+1] );
-                        dst[drow++] = ( c + b + a*2 );
+                        gxgy[drow++] = ( e - trow0[x] );
+                        gxgy[drow++] = ( a + trow1[x] + b*2 );
+                        gxgy[drow++] = ( f - trow0[x+1] );
+                        gxgy[drow++] = ( c + b + a*2 );
 
-                        dst[drow++] = ( trow0[x+4] - e );
-                        dst[drow++] = ( d + a + c*2 );
-                        dst[drow++] = ( trow0[x+5] - f );
-                        dst[drow++] = ( trow1[x+5] + c + d*2 );
+                        gxgy[drow++] = ( trow0[x+4] - e );
+                        gxgy[drow++] = ( d + a + c*2 );
+                        gxgy[drow++] = ( trow0[x+5] - f );
+                        gxgy[drow++] = ( trow1[x+5] + c + d*2 );
                     }
                     for(; x < w; ++x) {
-                        dst[drow++] = ( trow0[x+2] - trow0[x] );
-                        dst[drow++] = ( trow1[x+2] + trow1[x] + trow1[x+1]*2 );
+                        gxgy[drow++] = ( trow0[x+2] - trow0[x] );
+                        gxgy[drow++] = ( trow1[x+2] + trow1[x] + trow1[x+1]*2 );
                     }
                 }
                 jsfeat.cache.put_buffer(buf0_node);
@@ -1053,7 +1053,7 @@
             // transform is 3x3 matrix_t
             warp_perspective: function(src, dst, transform, fill_value) {
                 if (typeof fill_value === "undefined") { fill_value = 0; }
-                var src_width=src.cols, src_height=src.rows, dst_width=dst.cols, dst_height=dst.rows;
+                var src_width=src.cols|0, src_height=src.rows|0, dst_width=dst.cols|0, dst_height=dst.rows|0;
                 var src_d=src.data, dst_d=dst.data;
                 var x=0,y=0,off=0,ixs=0,iys=0,xs=0.0,ys=0.0,xs0=0.0,ys0=0.0,ws=0.0,sc=0.0,a=0.0,b=0.0,p0=0.0,p1=0.0;
                 var td=transform.data;
@@ -1073,7 +1073,7 @@
                         if(xs > 0 && ys > 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
                             a = Math.max(xs - ixs, 0.0);
                             b = Math.max(ys - iys, 0.0);
-                            off = src_width*iys + ixs;
+                            off = (src_width*iys + ixs)|0;
 
                             p0 = src_d[off] +  a * (src_d[off+1] - src_d[off]);
                             p1 = src_d[off+src_width] + a * (src_d[off+src_width+1] - src_d[off+src_width]);

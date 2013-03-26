@@ -22,7 +22,7 @@ The project aim is to explore JS/HTML5 possibilities using modern & state-of-art
  * Cholesky solver
  * SVD decomposition, solver and pseudo-inverse
  * Eigen Vectors and Values
-* Multiview module
+* Multiview module  ([Demo](http://inspirit.github.com/jsfeat/sample_videostab.html))
  * Affine2D motion kernel
  * Homography2D motion kernel
  * RANSAC motion estimator

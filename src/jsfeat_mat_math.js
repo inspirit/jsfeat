@@ -10,6 +10,21 @@
     var matmath = (function() {
         
         return {
+            identity: function(M, value) {
+                if (typeof value === "undefined") { value=1; }
+                var src=M.data;
+                var rows=M.rows, cols=M.cols, cols_1=(cols+1)|0;
+                var len = rows * cols;
+                var k = len;
+                while(--len >= 0) src[len] = 0.0;
+                len = k;
+                k = 0;
+                while(k < len)  {
+                    src[k] = value;
+                    k = k + cols_1;
+                }
+            },
+
             transpose: function(At, A) {
                 var i=0,j=0,nrows=A.rows,ncols=A.cols;
                 var Ai=0,Ati=0,pAt=0;
@@ -133,6 +148,14 @@
             },
 
             // various small matrix operations
+            identity_3x3: function(M, value) {
+                if (typeof value === "undefined") { value=1; }
+                var dt=M.data;
+                dt[0] = dt[4] = dt[8] = value;
+                dt[1] = dt[2] = dt[3] = 0;
+                dt[5] = dt[6] = dt[7] = 0;
+            },
+
             invert_3x3: function(from, to) {
                 var A = from.data, invA = to.data;
                 var t1 = A[4];
