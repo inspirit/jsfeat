@@ -406,8 +406,7 @@
                 var i=0,x=0,y=0,end=0;
                 var windowSize = ((radius << 1) + 1)|0;
                 var radiusPlusOne = (radius + 1)|0, radiusPlus2 = (radiusPlusOne+1)|0;
-                var offset = 8192;
-                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (16384 / (windowSize*windowSize) + 0.5)|0;
+                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (1.0 / (windowSize*windowSize));
 
                 var tmp_buff = jsfeat.cache.get_buffer((w*h)<<2);
 
@@ -530,22 +529,22 @@
                         hold = data_i32[previousPixelIndex];
 
                         for(x = 0; x < radius; ++x, dstIndex += w) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
                             sum += data_i32[nextPixelIndex]- hold;
                             nextPixelIndex ++;
                         }
                         for(; x < h-radiusPlus2; x+=2, dstIndex += w2) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
                             sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
 
-                            data_u8[dstIndex+w] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex+w] = sum*scale;
                             sum += data_i32[nextPixelIndex+1]- data_i32[previousPixelIndex+1];
 
                             nextPixelIndex +=2;
                             previousPixelIndex +=2;
                         }
                         for(; x < h-radiusPlusOne; ++x, dstIndex += w) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
 
                             sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
                             nextPixelIndex ++;
@@ -553,7 +552,7 @@
                         }
                         hold = data_i32[nextPixelIndex-1];
                         for(; x < h; ++x, dstIndex += w) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
 
                             sum += hold- data_i32[previousPixelIndex];
                             previousPixelIndex ++;

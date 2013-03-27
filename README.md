@@ -16,6 +16,8 @@ The project aim is to explore JS/HTML5 possibilities using modern & state-of-art
  * gaussian blur ([Demo](http://inspirit.github.com/jsfeat/sample_gaussblur.html))
  * equalize histogram ([Demo](http://inspirit.github.com/jsfeat/sample_equalize_hist.html))
  * canny edges ([Demo](http://inspirit.github.com/jsfeat/sample_canny_edge.html))
+ * sobel deriv ([Demo](http://inspirit.github.com/jsfeat/sample_sobel.html))
+ * scharr deriv ([Demo](http://inspirit.github.com/jsfeat/sample_scharr.html))
  * find more at Examples and Documentation page
 * Linear Algebra module
  * LU (Gaussian elimination) solver

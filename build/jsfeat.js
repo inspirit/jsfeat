@@ -4,7 +4,6 @@
 
 // namespace ?
 var jsfeat = jsfeat || { REVISION: 'ALPHA' };
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -223,7 +222,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.point2d_t = point2d_t;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -303,7 +301,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     cache.allocate(30, 640*4);
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -718,7 +715,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.math = math;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -2318,7 +2314,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.motion_estimator = motion_estimator;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -2727,8 +2722,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 var i=0,x=0,y=0,end=0;
                 var windowSize = ((radius << 1) + 1)|0;
                 var radiusPlusOne = (radius + 1)|0, radiusPlus2 = (radiusPlusOne+1)|0;
-                var offset = 8192;
-                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (16384 / (windowSize*windowSize) + 0.5)|0;
+                var scale = options&jsfeat.BOX_BLUR_NOSCALE ? 1 : (1.0 / (windowSize*windowSize));
 
                 var tmp_buff = jsfeat.cache.get_buffer((w*h)<<2);
 
@@ -2851,22 +2845,22 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                         hold = data_i32[previousPixelIndex];
 
                         for(x = 0; x < radius; ++x, dstIndex += w) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
                             sum += data_i32[nextPixelIndex]- hold;
                             nextPixelIndex ++;
                         }
                         for(; x < h-radiusPlus2; x+=2, dstIndex += w2) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
                             sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
 
-                            data_u8[dstIndex+w] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex+w] = sum*scale;
                             sum += data_i32[nextPixelIndex+1]- data_i32[previousPixelIndex+1];
 
                             nextPixelIndex +=2;
                             previousPixelIndex +=2;
                         }
                         for(; x < h-radiusPlusOne; ++x, dstIndex += w) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
 
                             sum += data_i32[nextPixelIndex]- data_i32[previousPixelIndex];
                             nextPixelIndex ++;
@@ -2874,7 +2868,7 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                         }
                         hold = data_i32[nextPixelIndex-1];
                         for(; x < h; ++x, dstIndex += w) {
-                            data_u8[dstIndex] = (sum*scale+offset)>>14;
+                            data_u8[dstIndex] = sum*scale;
 
                             sum += hold- data_i32[previousPixelIndex];
                             previousPixelIndex ++;
@@ -3441,7 +3435,6 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
     global.imgproc = imgproc;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3781,7 +3774,6 @@ The references are:
     fast_corners.set_threshold(20); // set default
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -3877,7 +3869,6 @@ The references are:
     global.yape06 = yape06;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -4534,7 +4525,6 @@ The references are:
     global.optical_flow_lk = optical_flow_lk;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  *
@@ -4825,7 +4815,6 @@ The references are:
     global.haar = haar;
 
 })(jsfeat);
-
 /**
  * BBF: Brightness Binary Feature
  *
@@ -5220,7 +5209,6 @@ The references are:
     global.bbf = bbf;
 
 })(jsfeat);
-
 /**
  * @author Eugene Zatepyakin / http://inspirit.ru/
  */
@@ -5236,4 +5224,3 @@ The references are:
         module.exports = lib;
     }
 })(jsfeat);
-
