@@ -468,12 +468,14 @@ jsfeat.imgproc.pyrdown(source:matrix_t, dest:matrix_t);
 </pre>
                         <h4>scharr_derivatives</h4>
                         <p>Compute gradient using Scharr kernel <code>[3 10 3] * [-1 0 1]^T</code>. Works with single channel only.</p>
+                        <p><a href="sample_scharr.html" target="_blank" role="button" class="btn btn-mini">SCHARR DEMO</a></p>
 <pre class="prettyprint linenums">
 // result is written as [gx0,gy0,gx1,gy1, ...] sequence
 jsfeat.imgproc.scharr_derivatives(source:matrix_t, dest:Array);
 </pre>
                         <h4>sobel_derivatives</h4>
                         <p>Compute gradient using Sobel kernel <code>[1 2 1] * [-1 0 1]^T</code>. Works with single channel only.</p>
+                        <p><a href="sample_sobel.html" target="_blank" role="button" class="btn btn-mini">SOBEL DEMO</a></p>
 <pre class="prettyprint linenums">
 // result is written as [gx0,gy0,gx1,gy1, ...] sequence
 jsfeat.imgproc.sobel_derivatives(source:matrix_t, dest:Array);
