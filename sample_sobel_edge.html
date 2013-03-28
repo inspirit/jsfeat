@@ -1,0 +1,206 @@
+<!doctype html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="description" content="A JavaScript Computer Vision Library">
+        <meta name="author" content="Eugene Zatepyakin">
+        <title>JSFeat - JavaScript Computer Vision Library.</title>
+        
+
+        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="css/bootstrap.css">
+        <link rel="stylesheet" href="css/jsfeat.css">
+
+        <script type="text/javascript">
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-36419199-1']);
+          _gaq.push(['_trackPageview']);
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+        </script>
+    </head>
+    <body>
+            <video id="webcam" width="640" height="480" style="display:none;"></video>
+            <div style=" width:640px;height:480px;margin: 10px auto;">
+                <canvas id="canvas" width="640" height="480"></canvas>
+                <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
+                <div id="log" class="alert alert-info"></div>
+            </div>
+
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script type="text/javascript" src="js/jsfeat-min.js"></script>
+        <script type="text/javascript" src="js/compatibility.js"></script>
+        <script type="text/javascript" src="js/profiler.js"></script>
+        <script type="text/javascript">
+
+        $(window).load(function() {
+            "use strict";
+
+            // lets do some fun
+            var video = document.getElementById('webcam');
+            var canvas = document.getElementById('canvas');
+            try {
+                compatibility.getUserMedia({video: true}, function(stream) {
+                    try {
+                        video.src = compatibility.URL.createObjectURL(stream);
+                    } catch (error) {
+                        video.src = stream;
+                    }
+                    video.addEventListener('canplay', function() {
+                        video.removeEventListener('canplay');
+                        setTimeout(function() {
+                            video.play();
+                            demo_app();
+                        
+                            compatibility.requestAnimationFrame(tick);
+                        }, 500);
+                    }, true);
+                }, function (error) {
+                    $('#canvas').hide();
+                    $('#log').hide();
+                    $('#no_rtc').html('<h4>WebRTC not available.</h4>');
+                    $('#no_rtc').show();
+                });
+            } catch (error) {
+                $('#canvas').hide();
+                $('#log').hide();
+                $('#no_rtc').html('<h4>Something goes wrong...</h4>');
+                $('#no_rtc').show();
+            }
+
+            var stat = new profiler();
+
+            var ctx,canvasWidth,canvasHeight;
+            var img_u8,img_gxgy,img_mag;
+
+            function demo_app() {
+                canvasWidth  = canvas.width;
+                canvasHeight = canvas.height;
+                ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = "rgb(0,255,0)";
+                ctx.strokeStyle = "rgb(0,255,0)";
+
+                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8C1_t);
+                img_gxgy = new jsfeat.matrix_t(640, 480, jsfeat.S32C2_t);
+                img_mag = new jsfeat.matrix_t(640, 480, jsfeat.S32C1_t);
+
+                stat.add("grayscale");
+                stat.add("blur");
+                stat.add("sobel");
+                stat.add("edges");
+            }
+
+            function tick() {
+                compatibility.requestAnimationFrame(tick);
+                stat.new_frame();
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, 640, 480);
+                    var imageData = ctx.getImageData(0, 0, 640, 480);
+
+                    stat.start("grayscale");
+                    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                    stat.stop("grayscale");
+
+                    stat.start("blur");
+                    jsfeat.imgproc.gaussian_blur(img_u8, img_u8, 3);
+                    stat.stop("blur");
+
+                    stat.start("sobel");
+                    jsfeat.imgproc.sobel_derivatives(img_u8, img_gxgy);
+                    stat.stop("sobel");
+
+                    stat.start("edges");
+
+
+                    var i = img_u8.cols*img_u8.rows, gx = 0, gy = 0;
+                    var x=0,y=0,dx=0,dy=0;
+                    var agx=0, agy=0;
+                    var gd=img_gxgy.data, mag=img_mag.data, id=img_u8.data;
+
+                    while(--i >= 0) {
+                        gx = gd[i<<1];
+                        gy = gd[(i<<1)+1];
+                        mag[i] = gx*gx + gy*gy;
+                    }
+
+                    for(y = 1; y < img_u8.rows - 1; ++y) {
+                        i = (y * img_u8.cols + 1)|0;
+                        for(x = 1 ; x < img_u8.cols - 1; ++x, ++i) {
+
+                            gx = gd[i<<1];
+                            gy = gd[(i<<1)+1];
+                            agx = ((gx ^ (gx >> 31)) - (gx >> 31))|0;
+                            agy = ((gy ^ (gy >> 31)) - (gy >> 31))|0;
+                            
+                            if(gx > 0) dx = 1;
+                            else dx = -1;
+
+                            if(gy > 0) dy = img_u8.cols;
+                            else dy = -img_u8.cols;
+                                
+                            var a1, a2, b1, b2, A, B, point;
+                            if(agx > agy) {
+                                a1 = mag[i+dx];
+                                a2 = mag[i+dx+(-dy)];
+                                b1 = mag[i-dx];
+                                b2 = mag[i-dx+dy];
+                                A = (agx - agy)*a1 + agy*a2;
+                                B = (agx - agy)*b1 + agy*b2;
+                                point = mag[i] * agx;
+                                if(point >= A && point > B) {
+                                    id[i] = agx&0xff;
+                                }
+                                else {
+                                    id[i] = 0x0;
+                                }
+                            } else  {
+                                a1 = mag[i+(-dy)];
+                                a2 = mag[i+dx+(-dy)];
+                                b1 = mag[i+dy];
+                                b2 = mag[i-dx+dy];
+                                A = (agy - agx)*a1 + agx*a2;
+                                B = (agy - agx)*b1 + agx*b2;
+                                point = mag[i] * agy;
+                                if(point >= A && point > B) {
+                                    id[i] = agy&0xff;
+                                }
+                                else {
+                                    id[i] = 0x0;
+                                }                           
+                            }
+                        }
+                    }
+
+                    stat.stop("edges");
+
+
+                    // render result back to canvas
+                    var data_u32 = new Uint32Array(imageData.data.buffer);
+                    var alpha = (0xff << 24);
+                    var pix = 0;
+                    i = img_u8.cols*img_u8.rows;
+                    while(--i >= 0) {
+                        pix = id[i];
+                        data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+
+                    $('#log').html(stat.log());
+                }
+            }
+
+            $(window).unload(function() {
+                video.pause();
+                video.src=null;
+            });
+        });
+        </script>
+    </body>
+</html>
