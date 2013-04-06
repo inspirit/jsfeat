@@ -50,15 +50,12 @@
                     } catch (error) {
                         video.src = stream;
                     }
-                    video.addEventListener('canplay', function() {
-                        video.removeEventListener('canplay');
-                        setTimeout(function() {
+                    setTimeout(function() {
                             video.play();
                             demo_app();
                         
                             compatibility.requestAnimationFrame(tick);
                         }, 500);
-                    }, true);
                 }, function (error) {
                     $('#canvas').hide();
                     $('#log').hide();

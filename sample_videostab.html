@@ -35,7 +35,7 @@
         <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
         <script type="text/javascript" src="js/jsfeat-min.js"></script>
         <script type="text/javascript" src="js/profiler.js"></script>
-        <script type="text/javascript" src="js/gumwrapper.js"></script>
+        <script type="text/javascript" src="js/compatibility.js"></script>
         <script type="text/javascript" src="js/videostab/videostab.js"></script>
         <script type="text/javascript" src="js/videostab/gauss_motion_filter.js"></script>
         <script type="text/javascript" src="js/videostab/keypoint_motion_estimator.js"></script>
@@ -65,41 +65,6 @@
         $(window).load(function() {
             "use strict";
 
-            // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
-            // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
-
-            // requestAnimationFrame polyfill by Erik Möller
-            // fixes from Paul Irish and Tino Zijdel
-
-            ( function () {
-
-                var lastTime = 0;
-                var vendors = [ 'ms', 'moz', 'webkit', 'o' ];
-
-                for ( var x = 0; x < vendors.length && !window.requestAnimationFrame; ++ x ) {
-
-                    window.requestAnimationFrame = window[ vendors[ x ] + 'RequestAnimationFrame' ];
-                    window.cancelAnimationFrame = window[ vendors[ x ] + 'CancelAnimationFrame' ] || window[ vendors[ x ] + 'CancelRequestAnimationFrame' ];
-
-                }
-
-                if ( window.requestAnimationFrame === undefined ) {
-
-                    window.requestAnimationFrame = function ( callback ) {
-
-                        var currTime = Date.now(), timeToCall = Math.max( 0, 16 - ( currTime - lastTime ) );
-                        var id = window.setTimeout( function() { callback( currTime + timeToCall ); }, timeToCall );
-                        lastTime = currTime + timeToCall;
-                        return id;
-
-                    };
-
-                }
-
-                window.cancelAnimationFrame = window.cancelAnimationFrame || function ( id ) { window.clearTimeout( id ) };
-
-            }() );
-
             (function() {
                 function showError(error) {
                     $('#canvas').hide();
@@ -123,7 +88,7 @@
 
                 var stat = new profiler();
 
-                function videOK(video) {
+                function videOK() {
                     
                     videoWidth = video.videoWidth;
                     videoHeight = video.videoHeight;
@@ -175,7 +140,7 @@
                 }
 
                 function processGL(){
-                    requestAnimationFrame( processGL );
+                    compatibility.requestAnimationFrame( processGL );
 
                     stat.new_frame();
 
@@ -210,7 +175,7 @@
 
                 function process() {
 
-                    requestAnimationFrame( process );
+                    compatibility.requestAnimationFrame( process );
 
                     stat.new_frame();
 
@@ -234,8 +199,23 @@
                     $('#log').html(stat.log());
                 }
 
-                var gum = new GumWrapper({video: 'webcam'}, videOK, showError);
-                gum.play();
+                try {
+                    compatibility.getUserMedia({video: true}, function(stream) {
+                        try {
+                            video.src = compatibility.URL.createObjectURL(stream);
+                        } catch (error) {
+                            video.src = stream;
+                        }
+                        setTimeout(function() {
+                                video.play();
+                                videOK();
+                            }, 500);
+                    }, function (error) {
+                        showError();
+                    });
+                } catch (error) {
+                    showError();
+                }
 
 
                 ////////////////////////////////////// GL RENDER
