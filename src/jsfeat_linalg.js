@@ -229,57 +229,38 @@
                         
                         p *= 2.0;
                         beta = a - b, gamma = hypot(p, beta);
-                        if(beta < 0) {
+                        if( beta < 0 ) {
                             delta = (gamma - beta)*0.5;
                             s = Math.sqrt(delta/gamma);
                             c = (p/(gamma*s*2.0));
                         } else {
                             c = Math.sqrt((gamma + beta)/(gamma*2.0));
                             s = (p/(gamma*c*2.0));
-                            delta = p*p*0.5/(gamma + beta);
                         }
                         
-                        W[i] += delta;
-                        W[j] -= delta;
+                        a=0.0, b=0.0;
                         
-                        if( (iter & 1) && W[i] > 0 && W[j] > 0 ) {
-                            k = 2;//unroll 2x2
-                            t0 = c*At[Ai] + s*At[Aj];
-                            t1 = -s*At[Ai] + c*At[Aj];
-                            At[Ai] = t0; At[Aj] = t1;
+                        k = 2; // unroll
+                        t0 = c*At[Ai] + s*At[Aj];
+                        t1 = -s*At[Ai] + c*At[Aj];
+                        At[Ai] = t0; At[Aj] = t1;
+                        a += t0*t0; b += t1*t1;
 
-                            t0 = c*At[Ai+1] + s*At[Aj+1];
-                            t1 = -s*At[Ai+1] + c*At[Aj+1];
-                            At[Ai+1] = t0; At[Aj+1] = t1;
+                        t0 = c*At[Ai+1] + s*At[Aj+1];
+                        t1 = -s*At[Ai+1] + c*At[Aj+1];
+                        At[Ai+1] = t0; At[Aj+1] = t1;
+                        a += t0*t0; b += t1*t1;
 
-                            for(; k < m; k++) {
-                                t0 = c*At[Ai+k] + s*At[Aj+k];
-                                t1 = -s*At[Ai+k] + c*At[Aj+k];
-                                At[Ai+k] = t0; At[Aj+k] = t1;
-                            }
-                        } else {
-                            a = b = 0;
-                            k = 2; // unroll
-                            t0 = c*At[Ai] + s*At[Aj];
-                            t1 = -s*At[Ai] + c*At[Aj];
-                            At[Ai] = t0; At[Aj] = t1;
+                        for( ; k < m; k++ )
+                        {
+                            t0 = c*At[Ai+k] + s*At[Aj+k];
+                            t1 = -s*At[Ai+k] + c*At[Aj+k];
+                            At[Ai+k] = t0; At[Aj+k] = t1;
+                            
                             a += t0*t0; b += t1*t1;
-
-                            t0 = c*At[Ai+1] + s*At[Aj+1];
-                            t1 = -s*At[Ai+1] + c*At[Aj+1];
-                            At[Ai+1] = t0; At[Aj+1] = t1;
-                            a += t0*t0; b += t1*t1;
-
-                            for( ; k < m; k++ )
-                            {
-                                t0 = c*At[Ai+k] + s*At[Aj+k];
-                                t1 = -s*At[Ai+k] + c*At[Aj+k];
-                                At[Ai+k] = t0; At[Aj+k] = t1;
-                                
-                                a += t0*t0; b += t1*t1;
-                            }
-                            W[i] = a; W[j] = b;
                         }
+                        
+                        W[i] = a; W[j] = b;
                         
                         changed = 1;
                         

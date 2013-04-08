@@ -579,7 +579,7 @@
                 var filt_node = jsfeat.cache.get_buffer(kernel_size<<2);
 
                 if(is_u8) {
-                    buf = buf_node.u8;
+                    buf = buf_node.i32;
                     filter = filt_node.i32;
                 } else if(data_type&jsfeat.S32_t) {
                     buf = buf_node.i32;
