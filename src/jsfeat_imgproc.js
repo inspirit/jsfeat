@@ -213,17 +213,17 @@
                         sum2 += buf[k + j+2] * fk;
                         sum3 += buf[k + j+3] * fk;
                     }
-                    dst_d[dp+j] = sum >> 8;
-                    dst_d[dp+j+1] = sum1 >> 8;
-                    dst_d[dp+j+2] = sum2 >> 8;
-                    dst_d[dp+j+3] = sum3 >> 8;
+                    dst_d[dp+j] = Math.min(sum >> 8, 255);
+                    dst_d[dp+j+1] = Math.min(sum1 >> 8, 255);
+                    dst_d[dp+j+2] = Math.min(sum2 >> 8, 255);
+                    dst_d[dp+j+3] = Math.min(sum3 >> 8, 255);
                 }
                 for (; j < w; ++j) {
                     sum = buf[j] * f0;
                     for (k = 1; k < kernel_size; ++k) {
                         sum += buf[k + j] * filter[k];
                     }
-                    dst_d[dp+j] = sum >> 8;
+                    dst_d[dp+j] = Math.min(sum >> 8, 255);
                 }
                 sp += w;
                 dp += w;
@@ -260,17 +260,17 @@
                         sum2 += buf[k + j+2] * fk;
                         sum3 += buf[k + j+3] * fk;
                     }
-                    dst_d[dp] = sum >> 8;
-                    dst_d[dp+w] = sum1 >> 8;
-                    dst_d[dp+w2] = sum2 >> 8;
-                    dst_d[dp+w3] = sum3 >> 8;
+                    dst_d[dp] = Math.min(sum >> 8, 255);
+                    dst_d[dp+w] = Math.min(sum1 >> 8, 255);
+                    dst_d[dp+w2] = Math.min(sum2 >> 8, 255);
+                    dst_d[dp+w3] = Math.min(sum3 >> 8, 255);
                 }
                 for (; j < h; ++j, dp+=w) {
                     sum = buf[j] * f0;
                     for (k = 1; k < kernel_size; ++k) {
                         sum += buf[k + j] * filter[k];
                     }
-                    dst_d[dp] = sum >> 8;
+                    dst_d[dp] = Math.min(sum >> 8, 255);
                 }
             }
         }
