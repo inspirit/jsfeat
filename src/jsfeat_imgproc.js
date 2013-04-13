@@ -906,7 +906,7 @@
                 var map = map_node.i32;
                 var stack = stack_node.i32;
                 var dxdy = dxdy_node.i32;
-                var dxdy_m = new jsfeat.matrix_t(w0, h0, jsfeat.S32C2_t, dxdy_node.data);
+                var dxdy_m = new jsfeat.matrix_t(w, h, jsfeat.S32C2_t, dxdy_node.data);
                 var row0=1,row1=(w+2+1)|0,row2=(2*(w+2)+1)|0,map_w=(w+2)|0,map_i=(map_w+1)|0,stack_i=0;
 
                 this.sobel_derivatives(src, dxdy_m);
