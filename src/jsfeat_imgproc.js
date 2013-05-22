@@ -1113,6 +1113,27 @@
                         else dst_d[dptr] = fill_value;
                     }
                 }
+            },
+            
+            // Basic RGB Skin detection filter
+            // from http://popscan.blogspot.fr/2012/08/skin-detection-in-digital-images.html
+            skindetector: function(src,dst) {
+                var r,g,b,j;
+                var i = src.width*src.height;
+                while(i--){
+                    j = i*4;
+                    r = src.data[j];
+                    g = src.data[j+1];
+                    b = src.data[j+2];
+                    if((r>95)&&(g>40)&&(b>20)
+                     &&(r>g)&&(r>b)
+                     &&(r-Math.min(g,b)>15)
+                     &&(Math.abs(r-g)>15)){
+                         dst[i] = 255;
+                    } else {
+                        dst[i] = 0;
+                    }
+                }                
             }
         };
     })();
