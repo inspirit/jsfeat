@@ -378,8 +378,9 @@
                     klen = offsets.length,
                     pos = 0, value, i, j, k;
                 if (src === dst) {
-                    tmp_buff = src.buffer.buffer.slice(0);
-                    src_d = new Uint8Array(tmp_buff);
+                    tmp_buff = jsfeat.cache.get_buffer(width*height);
+                    src.copy_to(tmp_buff);
+                    src_d = tmp_buff.data;
                 } else {
                     src_d = src.data;
                 }
@@ -405,6 +406,10 @@
 
                 for (i = 0; i < width; ++ i){
                     dst_d[pos ++] = 0;
+                }
+                
+                if (src === dst) {
+                    jsfeat.cache.put_buffer(tmp_buff);
                 }
             }
         }
