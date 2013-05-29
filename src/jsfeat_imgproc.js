@@ -394,9 +394,14 @@
                     for (j = 2; j < width; ++ j){
                         value = src_d[pos];
 
-                        for (k = 0; k < klen; ++ k){
-                            value = fn(value, src_d[ pos + offsets[k] ] );
-                        }
+                        value = fn(value, src_d[ pos + offsets[0] ]);
+                        value = fn(value, src_d[ pos + offsets[1] ]);
+                        value = fn(value, src_d[ pos + offsets[2] ]);
+                        value = fn(value, src_d[ pos + offsets[3] ]);
+                        value = fn(value, src_d[ pos + offsets[4] ]);
+                        value = fn(value, src_d[ pos + offsets[5] ]);
+                        value = fn(value, src_d[ pos + offsets[6] ]);
+                        value = fn(value, src_d[ pos + offsets[7] ]);
 
                         dst_d[pos ++] = value;
                     }
