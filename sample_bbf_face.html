@@ -45,6 +45,30 @@
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
             try {
+                var attempts = 0;
+                var readyListener = function(event) {
+                    findVideoSize();
+                };
+                var findVideoSize = function() {
+                    if(video.videoWidth > 0 && video.videoHeight > 0) {
+                        video.removeEventListener('loadeddata', readyListener);
+                        onDimensionsReady(video.videoWidth, video.videoHeight);
+                    } else {
+                        if(attempts < 10) {
+                            attempts++;
+                            setTimeout(findVideoSize, 200);
+                        } else {
+                            onDimensionsReady(640, 480);
+                        }
+                    }
+                };
+                var onDimensionsReady = function(width, height) {
+                    demo_app(width, height);
+                    compatibility.requestAnimationFrame(tick);
+                };
+
+                video.addEventListener('loadeddata', readyListener);
+
                 compatibility.getUserMedia({video: true}, function(stream) {
                     try {
                         video.src = compatibility.URL.createObjectURL(stream);
@@ -53,9 +77,6 @@
                     }
                     setTimeout(function() {
                             video.play();
-                            demo_app();
-                        
-                            compatibility.requestAnimationFrame(tick);
                         }, 500);
                 }, function (error) {
                     $('#canvas').hide();
@@ -77,7 +98,7 @@
 
             var max_work_size = 160;
 
-            function demo_app() {
+            function demo_app(videoWidth, videoHeight) {
                 canvasWidth  = canvas.width;
                 canvasHeight = canvas.height;
                 ctx = canvas.getContext('2d');
@@ -85,9 +106,9 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                var scale = Math.min(max_work_size/video.videoWidth, max_work_size/video.videoHeight);
-                var w = (video.videoWidth*scale)|0;
-                var h = (video.videoHeight*scale)|0;
+                var scale = Math.min(max_work_size/videoWidth, max_work_size/videoHeight);
+                var w = (videoWidth*scale)|0;
+                var h = (videoHeight*scale)|0;
 
                 img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
                 work_canvas = document.createElement('canvas');
