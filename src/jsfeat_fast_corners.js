@@ -19,10 +19,6 @@ The references are:
 
         var offsets16 = new Int32Array([0, 3, 1, 3, 2, 2, 3, 1, 3, 0, 3, -1, 2, -2, 1, -3, 0, -3, -1, -3, -2, -2, -3, -1, -3, 0, -3, 1, -2, 2, -1, 3]);
 
-        // decided to switch it off since other pattern sizes return quite poor points
-        //var offsets12 = new Int32Array([0, 2, 1, 2, 2, 1, 2, 0, 2, -1, 1, -2, 0, -2, -1, -2, -2, -1, -2, 0, -2, 1, -1, 2]);
-        //var offsets8 = new Int32Array([0, 1, 1, 1, 1, 0, 1, -1, 0, -1, -1, -1, -1, 0, -1, 1]);
-
         var threshold_tab = new Uint8Array(512);
         var pixel_off = new Int32Array(25);
         var score_diff = new Int32Array(25);
@@ -30,7 +26,6 @@ The references are:
         // private functions
         var _cmp_offsets = function(pixel, step, pattern_size) {
             var k = 0;
-            //var offsets = pattern_size == 16 ? offsets16 : (pattern_size == 12 ? offsets12 : offsets8);
             var offsets = offsets16;
             for( ; k < pattern_size; ++k ) {
                 pixel[k] = offsets[k<<1] + offsets[(k<<1)+1] * step;
@@ -39,79 +34,7 @@ The references are:
                 pixel[k] = pixel[k - pattern_size];
             }
         },
-/*
-        _cmp_score_8 = function(src, off, pixel, d, threshold) {
-            var N = 13, k = 0, v = src[off];
-            var a0 = threshold,a=0,b0=0,b=0;
 
-            for( ; k < N; ++k ) {
-                d[k] = v - src[off+pixel[k]];
-            }
-
-            for( k = 0; k < 8; k += 2 ) {
-                a = Math.min(d[k+1], d[k+2]);
-
-                if( a <= a0 ) continue;
-
-                a = Math.min(a, d[k+3]);
-                a = Math.min(a, d[k+4]);
-                a0 = Math.max(a0, Math.min(a, d[k]));
-                a0 = Math.max(a0, Math.min(a, d[k+5]));
-            }
-
-            b0 = -a0;
-            for( k = 0; k < 8; k += 2 ) {
-                b = Math.max(d[k+1], d[k+2]);
-                b = Math.max(b, d[k+3]);
-
-                if( b >= b0 ) continue;
-
-                b = Math.max(b, d[k+4]);
-                b0 = Math.min(b0, Math.max(b, d[k]));
-                b0 = Math.min(b0, Math.max(b, d[k+5]));
-            }
-
-            return -b0-1;
-        },
-
-        _cmp_score_12 = function(src, off, pixel, d, threshold) {
-            var N = 19, k = 0, v = src[off];
-            var a0 = threshold,a=0,b0=0,b=0;
-
-            for( ; k < N; ++k ) {
-                d[k] = v - src[off+pixel[k]];
-            }
-
-            for( k = 0; k < 12; k += 2 ) {
-                a = Math.min(d[k+1], d[k+2]);
-
-                if( a <= a0 ) continue;
-
-                a = Math.min(a, d[k+3]);
-                a = Math.min(a, d[k+4]);
-                a = Math.min(a, d[k+5]);
-                a = Math.min(a, d[k+6]);
-                a0 = Math.max(a0, Math.min(a, d[k]));
-                a0 = Math.max(a0, Math.min(a, d[k+7]));
-            }
-
-            b0 = -a0;
-            for( k = 0; k < 12; k += 2 ) {
-                b = Math.max(d[k+1], d[k+2]);
-                b = Math.max(b, d[k+3]);
-                b = Math.max(b, d[k+4]);
-
-                if( b >= b0 ) continue;
-
-                b = Math.max(b, d[k+5]);
-                b = Math.max(b, d[k+6]);
-                b0 = Math.min(b0, Math.max(b, d[k]));
-                b0 = Math.min(b0, Math.max(b, d[k+7]));
-            }
-
-            return -b0-1;
-        },
-*/
         _cmp_score_16 = function(src, off, pixel, d, threshold) {
             var N = 25, k = 0, v = src[off];
             var a0 = threshold,a=0,b0=0,b=0;
@@ -165,13 +88,6 @@ The references are:
             },
             
             detect: function(src, corners, border) {
-                /*
-                if (typeof pattern_size === "undefined") { 
-                    pattern_size = 16; 
-                } else if(pattern_size != 16 && pattern_size!=12 && pattern_size!=8) {
-                    pattern_size = 16;
-                }
-                */
                 if (typeof border === "undefined") { border = 3; }
 
                 var K = 8, N = 25;
@@ -188,7 +104,6 @@ The references are:
                 var sx = Math.max(3, border);
                 var ex = Math.min((w - 3), (w - border));
                 var _count = 0, corners_cnt = 0, pt;
-                //var score_func = pattern_size == 16 ? _cmp_score_16 : (pattern_size == 12 ? _cmp_score_12 : _cmp_score_8);
                 var score_func = _cmp_score_16;
                 var thresh_tab = threshold_tab;
                 var threshold = _threshold;

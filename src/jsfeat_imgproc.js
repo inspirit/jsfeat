@@ -1100,9 +1100,9 @@
                     for(x = 0; x < dst_width; ++x, ++dptr, xs+=m00, ys+=m10) {
                         ixs = xs | 0; iys = ys | 0;
 
-                        if(xs > 0 && ys > 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
-                            a = Math.max(xs - ixs, 0.0);
-                            b = Math.max(ys - iys, 0.0);
+                        if(ixs >= 0 && iys >= 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                            a = xs - ixs;
+                            b = ys - iys;
                             off = src_width*iys + ixs;
 
                             p0 = src_d[off] +  a * (src_d[off+1] - src_d[off]);

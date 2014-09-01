@@ -13,6 +13,7 @@
                 <file name="jsfeat_fast_corners.js" />
                 <file name="jsfeat_yape06.js" />
                 <file name="jsfeat_yape.js" />
+                <file name="jsfeat_orb.js" />
                 <file name="jsfeat_optical_flow_lk.js" />
                 <file name="jsfeat_haar.js" />
                 <file name="jsfeat_bbf.js" />

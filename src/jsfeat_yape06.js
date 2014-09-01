@@ -13,12 +13,11 @@
     var yape06 = (function() {
         
         var compute_laplacian = function(src, dst, w, h, Dxx, Dyy) {
-            var y=0,x=0,yrow=(Dxx*w)|0,row=yrow;
+            var y=0,x=0,yrow=(Dxx*w+Dxx)|0,row=yrow;
 
             for(y = Dxx; y < h - Dxx; ++y, yrow+=w, row = yrow) {
-                for(x = w - Dxx; x >= Dxx; --x) {
+                for(x = Dxx; x < w - Dxx; ++x, ++row) {
                     dst[row] = -4 * src[row] + src[row+Dxx] + src[row-Dxx] + src[row+Dyy] + src[row-Dyy];
-                    ++row;
                 }
             }
         }
@@ -53,9 +52,9 @@
                 while(--x>=0) {laplacian[x]=0;}
                 compute_laplacian(srd_d, laplacian, w, h, Dxx, Dyy);
 
-                row = (w+1)|0;
-                for(y = 1; y < h-1; ++y, row += w) {
-                    for(x = 1, rowx=row; x < w-1; ++x, ++rowx) {
+                row = (Dxx*w+Dxx)|0;
+                for(y = Dxx; y < h-Dxx; ++y, row += w) {
+                    for(x = Dxx, rowx=row; x < w-Dxx; ++x, ++rowx) {
 
                         lv = laplacian[rowx];
                         if ((lv < -lap_thresh &&
@@ -76,7 +75,7 @@
                                 pt = points[number_of_points];
                                 pt.x = x, pt.y = y, pt.score = min_eigen_value;
                                 ++number_of_points;
-                                ++x, ++rowx;
+                                ++x, ++rowx; // skip next pixel since this is maxima in 3x3
                             }
                         }
                     }
