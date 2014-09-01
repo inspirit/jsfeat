@@ -270,45 +270,18 @@
 		    -1,-6, 0,-11/*mean (0.127148), correlation (0.547401)*/
 		]);
 
-		var u_max = new Int32Array([15,15,15,15,14,14,14,13,13,12,11,10,9,8,6,3,0]);
-
-		ic_angle = function(src, step, half_k, ptx, pty) {
-	        var m_01 = 0, m_10 = 0;
-	        var u=0, v=0, center_off=(pty*step + ptx)|0;
-	        var v_sum=0,d=0,val_plus=0;
-	        
-	        // Treat the center line differently, v=0
-	        for (u = -half_k; u <= half_k; ++u)
-	            m_10 += u * src[center_off+u];
-	        
-	        // Go line by line in the circular patch
-	        for (v = 1; v <= half_k; ++v) {
-	            // Proceed over the two lines
-	            v_sum = 0;
-	            d = u_max[v];
-	            for (u = -d; u <= d; ++u) {
-	                val_plus = src[center_off+u+v*step], val_minus = src[center_off+u-v*step];
-	                v_sum += (val_plus - val_minus);
-	                m_10 += u * (val_plus + val_minus);
-	            }
-	            m_01 += v * v_sum;
-	        }
-	        
-	        return Math.atan2(m_01, m_10);
-	    };
-
 	    var H = new jsfeat.matrix_t(3, 3, jsfeat.F32_t|jsfeat.C1_t);
 	    var patch_img = new jsfeat.matrix_t(32, 32, jsfeat.U8_t|jsfeat.C1_t);
 
-	    rectify_patch = function(src, dst, angle, px, py, psize) {
-	    	var cosine = (angle>=0) ? Math.cos(angle*Math.PI/180) : 1.0;
-	    	var sine   = (angle>=0) ? Math.sin(angle*Math.PI/180) : 0.0;
+	    var rectify_patch = function(src, dst, angle, px, py, psize) {
+	    	var cosine = Math.cos(angle);
+	    	var sine   = Math.sin(angle);
 
 	        H.data[0] = cosine, H.data[1] = -sine,    H.data[2] = (-cosine + sine  ) * psize*0.5 + px,
 	        H.data[3] = sine,   H.data[4] =  cosine,  H.data[5] = (-sine   - cosine) * psize*0.5 + py;
 
 	        jsfeat.warp_affine(src, dst, H, 128);
-	    };
+	    }
 
     	return {
 
@@ -339,11 +312,6 @@
 					px = corners[i].x;
 					py = corners[i].y;
 					angle = corners[i].angle;
-
-					// estimate rotation if not available
-					if(angle == -1.0) {
-						corners[i].angle = angle = ic_angle(img, w, 15, px, py);
-					}
 
 					rectify_patch(src, patch_img, angle, px, py, 32);
 
