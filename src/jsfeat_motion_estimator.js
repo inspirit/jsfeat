@@ -312,9 +312,10 @@
 	        }
 
 	        homography2d.prototype.check_subset = function(from, to, count) {
-	        	if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
-        			return false;
-        		}
+	        	// seems to reject good subsets actually
+	        	//if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
+        			//return false;
+        		//}
         		if( count == 4 ) {
 			        var negative = 0;
 
