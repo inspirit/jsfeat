@@ -427,7 +427,7 @@ var ok = lmeds(params, affine_kernel, from, to, count, transform, mask, max_iter
                     </section>
                     <section id="imgproc">
                         <h2>Image processing</h2>
-                        <p><code>jsfeat.imgpoc</code> module is like library heart! It contatins all kinfs of methods to pre/post proccess and analyze image data.</p>
+                        <p><code>jsfeat.imgpoc</code> module is like library heart! It contains all kind of methods to pre/post process and analyze image data.</p>
                         <h4>grayscale</h4>
                         <p>Convert RGBA array input <code>[r0,g0,b0,a0, ...]</code> to grayscale using <code>Y = 0.299*R + 0.587*G + 0.114*B</code> formula. This should be more generic so we can convert different kind of input like BGRA, RGB, BGR in the future.</p>
                         <p><a href="sample_grayscale.html" target="_blank" role="button" class="btn btn-mini">GRAYSCALE DEMO</a></p>
@@ -579,6 +579,18 @@ for(var i = 0; i &lt; img.cols*img.rows, ++i) {
 // perform detection
 // returns the amount of detected corners
 var count = jsfeat.yape.detect(img:matrix_t, corners:Array, border = 4);
+</pre>
+                        <h4>ORB Descriptor</h4>
+                        <p>Oriented and Rotated BRIEF. [for more info see: <a href="http://en.wikipedia.org/wiki/ORB_(feature_descriptor)" target="_blank">http://en.wikipedia.org/wiki/ORB_(feature_descriptor)</a>]</p>
+                        <p><a href="sample_orb.html" target="_blank" role="button" class="btn btn-mini">ORB MATCHING DEMO</a></p>
+<pre class="prettyprint linenums">
+var corners = []; // jsfeat.point2d_t Array
+
+var cols = 32; // 32 Bytes / 256 BIT descriptor
+var rows = num_corners; // descriptors stored per row
+var descriptors = new jsfeat.matrix_t(cols, rows, jsfeat.U8_t | jsfeat.C1_t);
+
+jsfeat.orb.describe(img_u8:matrix_t, corners:Array, num_corners, descriptors:matrix_t);
 </pre>
                     </section>
                     <section id="opticalflowlk">
