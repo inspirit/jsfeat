@@ -1,0 +1,419 @@
+<!doctype html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="description" content="A JavaScript Computer Vision Library">
+        <meta name="author" content="Eugene Zatepyakin">
+        <title>JSFeat - JavaScript Computer Vision Library.</title>
+
+        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="css/bootstrap.css">
+        <link rel="stylesheet" href="css/jsfeat.css">
+
+        <script type="text/javascript">
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-36419199-1']);
+          _gaq.push(['_trackPageview']);
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+        </script>
+    </head>
+    <body>
+            <video id="webcam" width="640" height="480" style="display:none;"></video>
+            <div style=" width:640px;height:480px;margin: 10px auto;">
+                <canvas id="canvas" width="640" height="480"></canvas>
+                <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
+                <div id="log" class="alert alert-info"></div>
+            </div>
+
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script type="text/javascript" src="js/jsfeat.js"></script>
+        <script type="text/javascript" src="js/compatibility.js"></script>
+        <script type="text/javascript" src="js/profiler.js"></script>
+        <script type="text/javascript" src="js/dat.gui.min.js"></script>
+        <script type="text/javascript">
+
+        $(window).load(function() {
+            "use strict";
+
+            // lets do some fun
+            var video = document.getElementById('webcam');
+            var canvas = document.getElementById('canvas');
+            try {
+                var attempts = 0;
+                var readyListener = function(event) {
+                    findVideoSize();
+                };
+                var findVideoSize = function() {
+                    if(video.videoWidth > 0 && video.videoHeight > 0) {
+                        video.removeEventListener('loadeddata', readyListener);
+                        onDimensionsReady(video.videoWidth, video.videoHeight);
+                    } else {
+                        if(attempts < 10) {
+                            attempts++;
+                            setTimeout(findVideoSize, 200);
+                        } else {
+                            onDimensionsReady(640, 480);
+                        }
+                    }
+                };
+                var onDimensionsReady = function(width, height) {
+                    demo_app(width, height);
+                    compatibility.requestAnimationFrame(tick);
+                };
+
+                video.addEventListener('loadeddata', readyListener);
+
+                compatibility.getUserMedia({video: true}, function(stream) {
+                    try {
+                        video.src = compatibility.URL.createObjectURL(stream);
+                    } catch (error) {
+                        video.src = stream;
+                    }
+                    setTimeout(function() {
+                            video.play();
+                        }, 500);
+                }, function (error) {
+                    $('#canvas').hide();
+                    $('#log').hide();
+                    $('#no_rtc').html('<h4>WebRTC not available.</h4>');
+                    $('#no_rtc').show();
+                });
+            } catch (error) {
+                $('#canvas').hide();
+                $('#log').hide();
+                $('#no_rtc').html('<h4>Something goes wrong...</h4>');
+                $('#no_rtc').show();
+            }
+
+            var stat = new profiler();
+
+            // our point match structure
+            var match_t = (function () {
+                function match_t(screen_idx, pattern_lev, pattern_idx, distance) {
+                    if (typeof screen_idx === "undefined") { screen_idx=0; }
+                    if (typeof pattern_lev === "undefined") { pattern_lev=0; }
+                    if (typeof pattern_idx === "undefined") { pattern_idx=0; }
+                    if (typeof distance === "undefined") { distance=0; }
+
+                    this.screen_idx = screen_idx;
+                    this.pattern_lev = pattern_lev;
+                    this.pattern_idx = pattern_idx;
+                    this.distance = distance;
+                }
+                return match_t;
+            })();
+
+            var gui,options,ctx,canvasWidth,canvasHeight;
+            var img_u8, img_u8_smooth, screen_corners, num_corners, screen_descriptors;
+            var pattern_corners, pattern_descriptors, pattern_preview;
+            var matches;
+            var num_train_levels = 4;
+
+            var remove_by_border = function(corners, count, w, h, border) {
+                var i = 0, j=0;
+                for( ; i < count; ++i ) {
+                    corners[i].angle = -1;
+                    if( corners[i].x > border && corners[i].y > border
+                        && corners[i].x < w-border-1 && corners[i].y < h-border-1 ) {
+                        if( i > j ) {
+                            corners[j].x = corners[i].x;
+                            corners[j].y = corners[i].y;
+                            corners[j].score = corners[i].score;
+                        }
+                        j++;
+                    }
+                }
+
+                return j;
+            };
+
+            var preprocess_corners = function(corners, count, w, h, border, max_allowed) {
+                count = remove_by_border(corners, count, w, h, border);
+                if(count > max_allowed) {
+                    jsfeat.math.qsort(corners, 0, count-1, function(a,b){return (b.score<a.score);});
+                    count = max_allowed;
+                }
+                return count;
+            };
+
+            var demo_opt = function(){
+                this.lap_thres = 30;
+                this.eigen_thres = 25;
+                this.match_threshold = 32;
+
+                this.train_pattern = function() {
+                    // lets do multiple scale levels
+                    var lev=0, i=0;
+                    var sc = 1.0;
+                    var max_pattern_size = 480;
+                    var max_per_level = 300;
+                    var sc_inc = Math.sqrt(2.0); // magic number ;)
+                    var lev0_img = new jsfeat.matrix_t(img_u8.cols, img_u8.rows, jsfeat.U8_t | jsfeat.C1_t);
+                    var lev_img = new jsfeat.matrix_t(img_u8.cols, img_u8.rows, jsfeat.U8_t | jsfeat.C1_t);
+                    var new_width=0, new_height=0;
+                    var lev_corners, lev_descr;
+                    var corners_num=0;
+
+                    var sc0 = Math.min(max_pattern_size/img_u8.cols, max_pattern_size/img_u8.rows);
+                    new_width = (img_u8.cols*sc0)|0;
+                    new_height = (img_u8.rows*sc0)|0;
+                    lev0_img.resize(new_width, new_height, 1);
+                    lev_img.resize(new_width, new_height, 1);
+
+                    jsfeat.imgproc.resample(img_u8, lev0_img, new_width, new_height);
+
+                    // prepare preview
+                    pattern_preview = new jsfeat.matrix_t(new_width>>1, new_height>>1, jsfeat.U8_t | jsfeat.C1_t);
+                    jsfeat.imgproc.pyrdown(lev0_img, pattern_preview);
+
+                    for(lev=0; lev < num_train_levels; ++lev) {
+                        pattern_corners[lev] = [];
+                        lev_corners = pattern_corners[lev];
+
+                        // preallocate corners array
+                        i = (new_width*new_height) >> lev;
+                        while(--i >= 0) {
+                            lev_corners[i] = new jsfeat.point2d_t(0,0,0,0,-1);
+                        }
+
+                        pattern_descriptors[lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
+                    }
+
+                    // do the first level
+                    lev_corners = pattern_corners[0];
+                    lev_descr = pattern_descriptors[0];
+
+                    jsfeat.imgproc.box_blur_gray(lev0_img, lev_img, 3, 0);
+                    corners_num = jsfeat.yape06.detect(lev_img, lev_corners);
+                    corners_num = preprocess_corners(lev_corners, corners_num, lev_img.cols, lev_img.rows, 16, max_per_level);
+                    jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
+
+                    console.log("train " + new_width + "x" + new_height + " points: " + corners_num);
+
+                    sc /= sc_inc;
+
+                    // we can use Canvas context but its nice to demonstrate
+                    // that you can do everything with jsfeat
+                    for(lev = 1; lev < num_train_levels; ++lev) {
+                        lev_corners = pattern_corners[lev];
+                        lev_descr = pattern_descriptors[lev];
+
+                        new_width = (lev0_img.cols*sc)|0;
+                        new_height = (lev0_img.rows*sc)|0;
+                        lev_img.resize(new_width, new_height, 1);
+
+                        jsfeat.imgproc.resample(lev0_img, lev_img, new_width, new_height);
+                        jsfeat.imgproc.box_blur_gray(lev_img, lev_img, 3, 0);
+                        corners_num = jsfeat.yape06.detect(lev_img, lev_corners);
+                        corners_num = preprocess_corners(lev_corners, corners_num, lev_img.cols, lev_img.rows, 16, max_per_level);
+                        jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
+
+                        // fix the coordinates due to sclae level
+                        for(i = 0; i < corners_num; ++i) {
+                            lev_corners[i].x *= 1./sc;
+                            lev_corners[i].y *= 1./sc;
+                        }
+
+                        console.log("train " + new_width + "x" + new_height + " points: " + corners_num);
+
+                        sc /= sc_inc;
+                    }
+                }
+            }
+
+            function demo_app(videoWidth, videoHeight) {
+                canvasWidth  = canvas.width;
+                canvasHeight = canvas.height;
+                ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = "rgb(0,255,0)";
+                ctx.strokeStyle = "rgb(0,255,0)";
+
+                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                // after box blur
+                img_u8_smooth = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                // we wll limit to 500 strongest points
+                screen_descriptors = new jsfeat.matrix_t(32, 500, jsfeat.U8_t | jsfeat.C1_t);
+                pattern_descriptors = [];
+
+                screen_corners = [];
+                pattern_corners = [];
+                matches = [];
+
+                var i = 640*480;
+                while(--i >= 0) {
+                    screen_corners[i] = new jsfeat.point2d_t(0,0,0,0,-1);
+                    matches[i] = new match_t();
+                }
+
+                options = new demo_opt();
+                gui = new dat.GUI();
+
+                gui.add(options, "lap_thres", 1, 100);
+                gui.add(options, "eigen_thres", 1, 100);
+                gui.add(options, "match_threshold", 16, 128);
+                gui.add(options, "train_pattern");
+
+                stat.add("grayscale");
+                stat.add("box blur");
+                stat.add("yape06");
+                stat.add("orb");
+            }
+
+            function tick() {
+                compatibility.requestAnimationFrame(tick);
+                stat.new_frame();
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, 640, 480);
+                    var imageData = ctx.getImageData(0, 0, 640, 480);
+
+                    stat.start("grayscale");
+                    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                    stat.stop("grayscale");
+
+                    stat.start("box blur");
+                    jsfeat.imgproc.box_blur_gray(img_u8, img_u8_smooth, 3, 0);
+                    stat.stop("box blur");
+
+                    jsfeat.yape06.laplacian_threshold = options.lap_thres|0;
+                    jsfeat.yape06.min_eigen_value_threshold = options.eigen_thres|0;
+
+                    stat.start("yape06");
+                    num_corners = jsfeat.yape06.detect(img_u8_smooth, screen_corners);
+                    num_corners = preprocess_corners(screen_corners, num_corners, img_u8_smooth.cols, img_u8_smooth.rows, 16, 500);
+                    stat.stop("yape06");
+
+                    stat.start("orb");
+                    jsfeat.orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
+                    stat.stop("orb");
+
+                    // render result back to canvas
+                    var data_u32 = new Uint32Array(imageData.data.buffer);
+                    render_corners(screen_corners, num_corners, data_u32, 640);
+
+                    // render pattern and matches
+                    var num_matches = 0;
+                    if(pattern_preview) {
+                        render_mono_image(pattern_preview.data, data_u32, pattern_preview.cols, pattern_preview.rows, 640);
+                        num_matches = match_pattern();
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+
+                    if(num_matches) {
+                        draw_matches(ctx, matches, num_matches);
+                    }
+
+                    $('#log').html(stat.log());
+                }
+            }
+
+            function popcnt32(n) {
+                n -= ((n >> 1) & 0x55555555);
+                n = (n & 0x33333333) + ((n >> 2) & 0x33333333);
+                return (((n + (n >> 4))& 0xF0F0F0F)* 0x1010101) >> 24;
+            }
+
+            function match_pattern() {
+                var q_cnt = screen_descriptors.rows;
+                var query_du8 = screen_descriptors.data;
+                var query_u32 = screen_descriptors.buffer.i32;
+                var qd_off = 0;
+                var qidx=0,lev=0,pidx=0,k=0;
+                var num_matches = 0;
+
+                for(qidx = 0; qidx < q_cnt; ++qidx) {
+                    var best_dist = 256;
+                    var best_idx = -1;
+                    var best_lev = -1;
+
+                    for(lev = 0; lev < num_train_levels; ++lev) {
+                        var lev_descr = pattern_descriptors[lev];
+                        var ld_cnt = lev_descr.rows;
+                        var ld_i32 = lev_descr.buffer.i32;
+                        var ld_off = 0;
+
+                        for(pidx = 0; pidx < ld_cnt; ++pidx) {
+
+                            var curr_d = 0;
+                            // our descriptor is 32 bytes so we have 8 Integers
+                            for(k=0; k < 8; ++k) {
+                                curr_d += popcnt32( query_u32[qd_off+k]^ld_i32[ld_off+k] );
+                            }
+
+                            if(curr_d < best_dist) {
+                                best_dist = curr_d;
+                                best_lev = lev;
+                                best_idx = pidx;
+                            }
+
+                            ld_off += 8; // next descriptor
+                        }
+                    }
+
+                    // filter out by some arbitrary threshold
+                    if(best_dist < 48) {
+                        matches[num_matches].screen_idx = qidx;
+                        matches[num_matches].pattern_lev = best_lev;
+                        matches[num_matches].pattern_idx = best_idx;
+                        num_matches++;
+                    }
+
+                    qd_off += 8; // next query descriptor
+                }
+
+                return num_matches;
+            }
+
+            function draw_matches(cts, matches, count) {
+                
+                for(var i = 0; i < count; ++i) {
+                    var m = matches[i];
+                    var s_kp = screen_corners[m.screen_idx];
+                    var p_kp = pattern_corners[m.pattern_lev][m.pattern_idx];
+                    ctx.beginPath();
+                    ctx.moveTo(s_kp.x,s_kp.y);
+                    ctx.lineTo(p_kp.x*0.5, p_kp.y*0.5); // our preview is downscaled
+                    ctx.stroke();
+                }
+            }
+
+            function render_corners(corners, count, img, step) {
+                var pix = (0xff << 24) | (0x00 << 16) | (0xff << 8) | 0x00;
+                for(var i=0; i < count; ++i)
+                {
+                    var x = corners[i].x;
+                    var y = corners[i].y;
+                    var off = (x + y * step);
+                    img[off] = pix;
+                    img[off-1] = pix;
+                    img[off+1] = pix;
+                    img[off-step] = pix;
+                    img[off+step] = pix;
+                }
+            }
+
+            function render_mono_image(src, dst, sw, sh, dw) {
+                var alpha = (0xff << 24);
+                for(var i = 0; i < sh; ++i) {
+                    for(var j = 0; j < sw; ++j) {
+                        var pix = src[i*sw+j];
+                        dst[i*dw+j] = alpha | (pix << 16) | (pix << 8) | pix;
+                    }
+                }
+            }
+
+            $(window).unload(function() {
+                video.pause();
+                video.src=null;
+            });
+        });
+        </script>
+    </body>
+</html>
