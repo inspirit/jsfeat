@@ -159,8 +159,8 @@
         return pyramid_t;
     })();
 
-    var point2d_t = (function () {
-        function point2d_t(x,y,score,level,angle) {
+    var keypoint_t = (function () {
+        function keypoint_t(x,y,score,level,angle) {
             if (typeof x === "undefined") { x=0; }
             if (typeof y === "undefined") { y=0; }
             if (typeof score === "undefined") { score=0; }
@@ -173,7 +173,7 @@
             this.level = level;
             this.angle = angle;
         }
-        return point2d_t;
+        return keypoint_t;
     })();
 
 
@@ -215,6 +215,6 @@
     global.data_t = data_t;
     global.matrix_t = matrix_t;
     global.pyramid_t = pyramid_t;
-    global.point2d_t = point2d_t;
+    global.keypoint_t = keypoint_t;
 
 })(jsfeat);
