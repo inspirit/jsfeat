@@ -372,25 +372,41 @@
         return {
             // TODO: add support for RGB/BGR order
             // for raw arrays
-            grayscale: function(src, dst) {
-                var srcLength = src.length|0, srcLength_16 = (srcLength - 16)|0;
-                var j = 0;
-                var coeff_r = 4899, coeff_g = 9617, coeff_b = 1868;
+            grayscale: function(src, w, h, dst, code) {
+                // this is default image data representation in browser
+                if (typeof code === "undefined") { code = jsfeat.COLOR_RGBA2GRAY; }
+                var x=0, y=0, i=0, j=0, ir=0,jr=0;
+                var coeff_r = 4899, coeff_g = 9617, coeff_b = 1868, cn = 4;
 
-                for (var i = 0; i <= srcLength_16; i += 16, j += 4) {
-                    dst[j]     = (src[i] * coeff_r + src[i+1] * coeff_g + src[i+2] * coeff_b + 8192) >> 14;
-                    dst[j + 1] = (src[i+4] * coeff_r + src[i+5] * coeff_g + src[i+6] * coeff_b + 8192) >> 14;
-                    dst[j + 2] = (src[i+8] * coeff_r + src[i+9] * coeff_g + src[i+10] * coeff_b + 8192) >> 14;
-                    dst[j + 3] = (src[i+12] * coeff_r + src[i+13] * coeff_g + src[i+14] * coeff_b + 8192) >> 14;
+                if(code == jsfeat.COLOR_BGRA2GRAY || code == jsfeat.COLOR_BGR2GRAY) {
+                    coeff_r = 1868;
+                    coeff_b = 4899;
                 }
-                for (; i < srcLength; i += 4, ++j) {
-                    dst[j] = (src[i] * coeff_r + src[i+1] * coeff_g + src[i+2] * coeff_b + 8192) >> 14;
+                if(code == jsfeat.COLOR_RGB2GRAY || code == jsfeat.COLOR_BGR2GRAY) {
+                    cn = 3;
+                }
+                var cn2 = cn<<1, cn3 = (cn*3)|0;
+
+                dst.resize(w, h, 1);
+                var dst_u8 = dst.data;
+
+                for(y = 0; y < h; ++y, j+=w, i+=w*cn) {
+                    for(x = 0, ir = i, jr = j; x <= w-4; x+=4, ir+=cn<<2, jr+=4) {
+                        dst_u8[jr]     = (src[ir] * coeff_r + src[ir+1] * coeff_g + src[ir+2] * coeff_b + 8192) >> 14;
+                        dst_u8[jr + 1] = (src[ir+cn] * coeff_r + src[ir+cn+1] * coeff_g + src[ir+cn+2] * coeff_b + 8192) >> 14;
+                        dst_u8[jr + 2] = (src[ir+cn2] * coeff_r + src[ir+cn2+1] * coeff_g + src[ir+cn2+2] * coeff_b + 8192) >> 14;
+                        dst_u8[jr + 3] = (src[ir+cn3] * coeff_r + src[ir+cn3+1] * coeff_g + src[ir+cn3+2] * coeff_b + 8192) >> 14;
+                    }
+                    for (; x < w; ++x, ++jr, ir+=cn) {
+                        dst_u8[jr] = (src[ir] * coeff_r + src[ir+1] * coeff_g + src[ir+2] * coeff_b + 8192) >> 14;
+                    }
                 }
             },
             // derived from CCV library
             resample: function(src, dst, nw, nh) {
                 var h=src.rows,w=src.cols;
                 if (h > nh && w > nw) {
+                    dst.resize(nw, nh, src.channel);
                     // using the fast alternative (fix point scale, 0x100 to avoid overflow)
                     if (src.type&jsfeat.U8_t && dst.type&jsfeat.U8_t && h * w / (nh * nw) < 0x100) {
                         _resample_u8(src, dst, nw, nh);
@@ -414,6 +430,8 @@
                 var data_i32 = tmp_buff.i32; // to prevent overflow
                 var data_u8 = src.data;
                 var hold=0;
+
+                dst.resize(w, h, src.channel);
 
                 // first pass
                 // no need to scale 
@@ -572,6 +590,9 @@
                 var half_kernel = kernel_size >> 1;
                 var w = src.cols, h = src.rows;
                 var data_type = src.type, is_u8 = data_type&jsfeat.U8_t;
+
+                dst.resize(w, h, src.channel);
+
                 var src_d = src.data, dst_d = dst.data;
                 var buf,filter,buf_sz=(kernel_size + Math.max(h, w))|0;
 
@@ -610,6 +631,9 @@
                 var w2 = w >> 1, h2 = h >> 1;
                 var _w2 = w2 - (sx << 1), _h2 = h2 - (sy << 1);
                 var x=0,y=0,sptr=sx+sy*w,sline=0,dptr=0,dline=0;
+
+                dst.resize(w2, h2, src.channel);
+
                 var src_d = src.data, dst_d = dst.data;
 
                 for(y = 0; y < _h2; ++y) {
@@ -636,6 +660,9 @@
                 var dstep = w<<1,x=0,y=0,x1=0,a,b,c,d,e,f;
                 var srow0=0,srow1=0,srow2=0,drow=0;
                 var trow0,trow1;
+
+                dst.resize(w, h, 2); // 2 channel output gx, gy
+
                 var img = src.data, gxgy=dst.data;
 
                 var buf0_node = jsfeat.cache.get_buffer((w+2)<<2);
@@ -702,6 +729,9 @@
                 var dstep = w<<1,x=0,y=0,x1=0,a,b,c,d,e,f;
                 var srow0=0,srow1=0,srow2=0,drow=0;
                 var trow0,trow1;
+
+                dst.resize(w, h, 2); // 2 channel output gx, gy
+
                 var img = src.data, gxgy=dst.data;
 
                 var buf0_node = jsfeat.cache.get_buffer((w+2)<<2);
@@ -868,7 +898,11 @@
                 }
             },
             equalize_histogram: function(src, dst) {
-                var w=src.cols,h=src.rows,src_d=src.data,dst_d=dst.data,size=w*h;
+                var w=src.cols,h=src.rows,src_d=src.data;
+
+                dst.resize(w, h, src.channel);
+
+                var dst_d=dst.data,size=w*h;
                 var i=0,prev=0,hist0,norm;
 
                 var hist0_node = jsfeat.cache.get_buffer(256<<2);
@@ -891,7 +925,11 @@
             },
 
             canny: function(src, dst, low_thresh, high_thresh) {
-                var w=src.cols,h=src.rows,src_d=src.data,dst_d=dst.data;
+                var w=src.cols,h=src.rows,src_d=src.data;
+
+                dst.resize(w, h, src.channel);
+                
+                var dst_d=dst.data;
                 var i=0,j=0,grad=0,w2=w<<1,_grad=0,suppress=0,f=0,x=0,y=0,s=0;
                 var tg22x=0,tg67x=0;
 
