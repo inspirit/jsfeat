@@ -43,6 +43,12 @@
         }
     })();
 
+    // color conversion
+    var COLOR_RGBA2GRAY = 0;
+    var COLOR_RGB2GRAY = 1;
+    var COLOR_BGRA2GRAY = 2;
+    var COLOR_BGR2GRAY = 3;
+
     // box blur option
     var BOX_BLUR_NOSCALE = 0x01;
     // svd options
@@ -105,9 +111,9 @@
         }
         matrix_t.prototype.resize = function(c, r, ch) {
             if (typeof ch === "undefined") { ch = this.channel; }
-            // change buffer only if new size doesnt fit
-            var new_size = (c * ch) * r;
-            if(new_size > this.rows*this.cols*this.channel) {
+            // relocate buffer only if new size doesnt fit
+            var new_size = (c * get_data_type_size(this.type) * ch) * r;
+            if(new_size > this.buffer.size) {
                 this.cols = c;
                 this.rows = r;
                 this.channel = ch;
@@ -202,6 +208,12 @@
     // constants
     global.EPSILON = EPSILON;
     global.FLT_MIN = FLT_MIN;
+
+    // color convert
+    global.COLOR_RGBA2GRAY = COLOR_RGBA2GRAY;
+    global.COLOR_RGB2GRAY = COLOR_RGB2GRAY;
+    global.COLOR_BGRA2GRAY = COLOR_BGRA2GRAY;
+    global.COLOR_BGR2GRAY = COLOR_BGR2GRAY;
 
     // options
     global.BOX_BLUR_NOSCALE = BOX_BLUR_NOSCALE;
