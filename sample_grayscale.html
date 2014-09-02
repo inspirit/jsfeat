@@ -71,9 +71,9 @@
 
                 compatibility.getUserMedia({video: true}, function(stream) {
                     try {
-                        video.src = compatibility.URL.createObjectURL(stream);
+                        video.srcObject = stream;
                     } catch (error) {
-                        video.src = stream;
+                        video.src = compatibility.URL.createObjectURL(stream);
                     }
                     setTimeout(function() {
                             video.play();
