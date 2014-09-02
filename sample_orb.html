@@ -116,6 +116,7 @@
             var num_train_levels = 4;
 
             var demo_opt = function(){
+                this.blur_size = 5;
                 this.lap_thres = 30;
                 this.eigen_thres = 25;
                 this.match_threshold = 48;
@@ -159,7 +160,7 @@
                     lev_corners = pattern_corners[0];
                     lev_descr = pattern_descriptors[0];
 
-                    jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, 5); // this is more robust
+                    jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, options.blur_size|0); // this is more robust
                     corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
                     jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
 
@@ -178,7 +179,7 @@
                         new_height = (lev0_img.rows*sc)|0;
 
                         jsfeat.imgproc.resample(lev0_img, lev_img, new_width, new_height);
-                        jsfeat.imgproc.gaussian_blur(lev_img, lev_img, 5);
+                        jsfeat.imgproc.gaussian_blur(lev_img, lev_img, options.blur_size|0);
                         corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
                         jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
 
@@ -227,6 +228,7 @@
                 options = new demo_opt();
                 gui = new dat.GUI();
 
+                gui.add(options, "blur_size", 3, 9).step(1);
                 gui.add(options, "lap_thres", 1, 100);
                 gui.add(options, "eigen_thres", 1, 100);
                 gui.add(options, "match_threshold", 16, 128);
@@ -234,7 +236,7 @@
 
                 stat.add("grayscale");
                 stat.add("gauss blur");
-                stat.add("yape06 keypoints");
+                stat.add("keypoints");
                 stat.add("orb descriptors");
                 stat.add("matching");
             }
@@ -251,15 +253,15 @@
                     stat.stop("grayscale");
 
                     stat.start("gauss blur");
-                    jsfeat.imgproc.gaussian_blur(img_u8, img_u8_smooth, 5);
+                    jsfeat.imgproc.gaussian_blur(img_u8, img_u8_smooth, options.blur_size|0);
                     stat.stop("gauss blur");
 
                     jsfeat.yape06.laplacian_threshold = options.lap_thres|0;
                     jsfeat.yape06.min_eigen_value_threshold = options.eigen_thres|0;
 
-                    stat.start("yape06 keypoints");
+                    stat.start("keypoints");
                     num_corners = detect_keypoints(img_u8_smooth, screen_corners, 500);
-                    stat.stop("yape06 keypoints");
+                    stat.stop("keypoints");
 
                     stat.start("orb descriptors");
                     jsfeat.orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
@@ -410,6 +412,7 @@
 
                 for(qidx = 0; qidx < q_cnt; ++qidx) {
                     var best_dist = 256;
+                    var best_dist2 = 256;
                     var best_idx = -1;
                     var best_lev = -1;
 
@@ -428,9 +431,12 @@
                             }
 
                             if(curr_d < best_dist) {
+                                best_dist2 = best_dist;
                                 best_dist = curr_d;
                                 best_lev = lev;
                                 best_idx = pidx;
+                            } else if(curr_d < best_dist2) {
+                                best_dist2 = curr_d;
                             }
 
                             ld_off += 8; // next descriptor
@@ -444,6 +450,16 @@
                         matches[num_matches].pattern_idx = best_idx;
                         num_matches++;
                     }
+                    //
+
+                    /* filter using the ratio between 2 closest matches
+                    if(best_dist < 0.8*best_dist2) {
+                        matches[num_matches].screen_idx = qidx;
+                        matches[num_matches].pattern_lev = best_lev;
+                        matches[num_matches].pattern_idx = best_idx;
+                        num_matches++;
+                    }
+                    */
 
                     qd_off += 8; // next query descriptor
                 }
