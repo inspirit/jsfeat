@@ -120,11 +120,11 @@ var level_2 = my_pyramid.data[2]; // cols = 160, rows = 120
 // skip_first_level is true by default
 my_pyramid.build(source_matrix_t, skip_first_level = true);
 </pre>
-                        <h4>point2d_t</h4>
+                        <h4>keypoint_t</h4>
                         <p>2D point with coordinates, level and score properties:</p>
 <pre class="prettyprint linenums">
 // all arguments are zero by default
-var my_point = new jsfeat.point2d_t(x = 0, y = 0, score = 0, level = 0);
+var my_point = new jsfeat.keypoint_t(x = 0, y = 0, score = 0, level = 0);
 </pre>
                         <h4>ransac_params_t</h4>
                         <p>Used for <code>ransac</code> based motion estimator.</p>
@@ -183,12 +183,12 @@ var cmp_numeric = function(a, b) { return (a &lt; b); }
 jsfeat.math.qsort(arr, 0, arr.length-1, cmp_numeric);
 
 // sort array of points
-var point_arr = [ new jsfeat.point2d_t(1,10),
-                  new jsfeat.point2d_t(5,1),
-                  new jsfeat.point2d_t(33,10), 
-                  new jsfeat.point2d_t(0,0),
-                  new jsfeat.point2d_t(8,6),
-                  new jsfeat.point2d_t(3,0)];
+var point_arr = [ new jsfeat.keypoint_t(1,10),
+                  new jsfeat.keypoint_t(5,1),
+                  new jsfeat.keypoint_t(33,10), 
+                  new jsfeat.keypoint_t(0,0),
+                  new jsfeat.keypoint_t(8,6),
+                  new jsfeat.keypoint_t(3,0)];
 // define comparison method to sort points by ascending of y coordinates
 // and if y's are equal x's should ascend.
 var cmp_points = function(a, b) { return (a.y &lt; b.y) || (a.y &lt; b.y && a.x &lt; b.x); }
@@ -307,8 +307,8 @@ jsfeat.linalg.eigenVV(A:matrix_t, EigenVectors:matrix_t, null);
                     <section id="multiview">
                         <h2>Multiview</h2>
                         <p>The functions in this module estimate various geometrical transformations between two point sets.</p>
-                        <p><a href="sample_videostab.html" target="_blank" role="button" class="btn btn-mini">VIDEO STABILIZER DEMO</a></p>
-                        <p><a href="sample_orb.html" target="_blank" role="button" class="btn btn-mini">ORB MATCHING DEMO</a></p>
+                        <p><a href="sample_videostab.html" target="_blank" role="button" class="btn btn-mini">VIDEO STABILIZER DEMO</a>
+                        <a href="sample_orb.html" target="_blank" role="button" class="btn btn-mini">ORB MATCHING DEMO</a></p>
                         <h4>affine2d</h4>
                         <p>This kernel calculates the affine transform from corresponding points. The function calculates the <code>3x3 Matrix</code></p>
 <pre class="prettyprint linenums">
@@ -321,7 +321,7 @@ var from = [];
 var to = [];
 
 for(var i = 0; i &lt; count; ++i) {
-    // you can use point2d_t structure
+    // you can use keypoint_t structure
     // or just provide object with x and y properties
     from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
     to[i] = { "x":from[i].x + 5, "y":from[i].y+5 };
@@ -344,7 +344,7 @@ var from = [];
 var to = [];
 
 for(var i = 0; i &lt; count; ++i) {
-    // you can use point2d_t structure
+    // you can use keypoint_t structure
     // or just provide object with x and y properties
     from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
     to[i] = { "x":from[i].x + 5, "y":from[i].y+5 };
@@ -371,7 +371,7 @@ var from = [];
 var to = [];
 
 for(var i = 0; i &lt; count; ++i) {
-    // you can use point2d_t structure
+    // you can use keypoint_t structure
     // or just provide object with x and y properties
     from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
     to[i] = { "x":from[i].x + Math.random()*5, "y":from[i].y+Math.random()*5 };
@@ -406,7 +406,7 @@ var from = [];
 var to = [];
 
 for(var i = 0; i &lt; count; ++i) {
-    // you can use point2d_t structure
+    // you can use keypoint_t structure
     // or just provide object with x and y properties
     from[i] = { "x":Math.random()*320, "y":Math.random()*240 };
     to[i] = { "x":from[i].x + Math.random()*5, "y":from[i].y+Math.random()*5 };
@@ -430,14 +430,15 @@ var ok = lmeds(params, affine_kernel, from, to, count, transform, mask, max_iter
                         <h2>Image processing</h2>
                         <p><code>jsfeat.imgpoc</code> module is like library heart! It contains all kind of methods to pre/post process and analyze image data.</p>
                         <h4>grayscale</h4>
-                        <p>Convert RGBA array input <code>[r0,g0,b0,a0, ...]</code> to grayscale using <code>Y = 0.299*R + 0.587*G + 0.114*B</code> formula. This should be more generic so we can convert different kind of input like BGRA, RGB, BGR in the future.</p>
+                        <p>Convert color array input <code>[r0,g0,b0,a0, ...]</code> to grayscale using <code>Y = 0.299*R + 0.587*G + 0.114*B</code> formula. You can specify the source input channel order such as BGRA, RGBA, RGB and BGR.</p>
                         <p><a href="sample_grayscale.html" target="_blank" role="button" class="btn btn-mini">GRAYSCALE DEMO</a></p>
 <pre class="prettyprint linenums">
 context2d.drawImage(video, 0, 0, width, height);
 var image_data = context2d.getImageData(0, 0, width, height);
 
 var gray_img = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);
-jsfeat.imgproc.grayscale(image_data.data, gray_img.data);
+var code = jsfeat.COLOR_RGBA2GRAY;
+jsfeat.imgproc.grayscale(image_data.data, width, height, gray_img, code);
 </pre>
                         <h4>resample</h4>
                         <p>Generic resize method. Works with single and multi channel <code>matrix_t</code>. If performance is critical or you need multiple image resizings it is recommended to use <code>canvas</code> built-in <code>drawImage()</code> method.</p>
@@ -471,16 +472,16 @@ jsfeat.imgproc.pyrdown(source:matrix_t, dest:matrix_t);
                         <p>Compute gradient using Scharr kernel <code>[3 10 3] * [-1 0 1]^T</code>. Works with single channel only.</p>
                         <p><a href="sample_scharr.html" target="_blank" role="button" class="btn btn-mini">SCHARR DEMO</a></p>
 <pre class="prettyprint linenums">
-// result is written as [gx0,gy0,gx1,gy1, ...] sequence
-jsfeat.imgproc.scharr_derivatives(source:matrix_t, dest:Array);
+// result is written as [gx0,gy0,gx1,gy1, ...] sequence in 2 channel matrix_t
+jsfeat.imgproc.scharr_derivatives(source:matrix_t, dest:matrix_t);
 </pre>
                         <h4>sobel_derivatives</h4>
                         <p>Compute gradient using Sobel kernel <code>[1 2 1] * [-1 0 1]^T</code>. Works with single channel only.</p>
                         <p><a href="sample_sobel.html" target="_blank" role="button" class="btn btn-mini">SOBEL DEMO</a>
                             <a href="sample_sobel_edge.html" target="_blank" role="button" class="btn btn-mini">SOBEL EDGES DEMO</a></p>
 <pre class="prettyprint linenums">
-// result is written as [gx0,gy0,gx1,gy1, ...] sequence
-jsfeat.imgproc.sobel_derivatives(source:matrix_t, dest:Array);
+// result is written as [gx0,gy0,gx1,gy1, ...] sequence in 2 channel matrix_t
+jsfeat.imgproc.sobel_derivatives(source:matrix_t, dest:matrix_t);
 </pre>
                         <h4>compute_integral_image</h4>
                         <p>Calculates one or more integral images for the source image. Using these integral images, one may calculate sum, mean, standard deviation over arbitrary up-right or rotated rectangular region of the image in a constant time. <span class="label label-important">NOTE:</span> each destinatination should be 1 pixel larger than source <code>width = source.cols+1, height = source.rows+1</code>. Single channel source only.</p>
@@ -531,9 +532,9 @@ jsfeat.fast_corners.set_threshold(threshold);
 
 var corners = [], border = 3;
 
-// you should use preallocated point2d_t array
+// you should use preallocated keypoint_t array
 for(var i = 0; i &lt; img.cols*img.rows, ++i) {
-    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+    corners[i] = new jsfeat.keypoint_t(0,0,0,0);
 }
 
 // perform detection
@@ -552,14 +553,14 @@ var corners = [],
 jsfeat.yape06.laplacian_threshold = laplacian_threshold;
 jsfeat.yape06.min_eigen_value_threshold = min_eigen_value_threshold;
 
-// you should use preallocated point2d_t array
+// you should use preallocated keypoint_t array
 for(var i = 0; i &lt; img.cols*img.rows, ++i) {
-    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+    corners[i] = new jsfeat.keypoint_t(0,0,0,0);
 }
 
 // perform detection
 // returns the amount of detected corners
-var count = jsfeat.yape06.detect(img:matrix_t, corners:Array);
+var count = jsfeat.yape06.detect(img:matrix_t, corners:Array, border = 5);
 </pre>
                         <h4>YAPE</h4>
                         <p>Yet Another Point Extractor by CVLab (Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland).</p>
@@ -572,9 +573,9 @@ var corners = [],
 // YAPE needs init before running detection
 jsfeat.yape.init(image_width, image_height, radius, pyramid_levels);
 
-// you should use preallocated point2d_t array
+// you should use preallocated keypoint_t array
 for(var i = 0; i &lt; img.cols*img.rows, ++i) {
-    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+    corners[i] = new jsfeat.keypoint_t(0,0,0,0);
 }
 
 // perform detection
@@ -585,7 +586,7 @@ var count = jsfeat.yape.detect(img:matrix_t, corners:Array, border = 4);
                         <p>Oriented and Rotated BRIEF. [for more info see: <a href="http://en.wikipedia.org/wiki/ORB_(feature_descriptor)" target="_blank">http://en.wikipedia.org/wiki/ORB_(feature_descriptor)</a>]</p>
                         <p><a href="sample_orb.html" target="_blank" role="button" class="btn btn-mini">ORB MATCHING DEMO</a></p>
 <pre class="prettyprint linenums">
-var corners = []; // jsfeat.point2d_t Array
+var corners = []; // jsfeat.keypoint_t Array
 
 var cols = 32; // 32 Bytes / 256 BIT descriptor
 var rows = num_corners; // descriptors stored per row

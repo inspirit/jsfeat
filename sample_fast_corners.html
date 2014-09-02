@@ -113,7 +113,7 @@
                 corners = [];
                 var i = 640*480;
                 while(--i >= 0) {
-                    corners[i] = new jsfeat.point2d_t(0,0,0,0);
+                    corners[i] = new jsfeat.keypoint_t(0,0,0,0);
                 }
 
                 threshold = 20;
@@ -137,7 +137,7 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                    jsfeat.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     if(threshold != options.threshold) {

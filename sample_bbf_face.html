@@ -133,7 +133,7 @@
 
                     stat.start("bbf detector");
 
-                    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                    jsfeat.imgproc.grayscale(imageData.data, work_canvas.width, work_canvas.height, img_u8);
 
                     // possible options
                     //jsfeat.imgproc.equalize_histogram(img_u8, img_u8);

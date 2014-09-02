@@ -210,7 +210,7 @@
 		    }
 
 		    var gray = new jsfeat.matrix_t(w, h, jsfeat.U8C1_t);
-		    jsfeat.imgproc.grayscale(rgbaImageData.data, gray.data);
+		    jsfeat.imgproc.grayscale(rgbaImageData.data, w, h, gray);
 
 		    for (i = -this.radius; i < 0; ++i) {
 		    	j = videostab.get_ring_ind(i, cache_size);
@@ -282,7 +282,7 @@
 		        if (this.curPos > 0) {
 
 		            var gray_frame = videostab.get_at(this.curPos, this.frameBufferSize, this.frames);
-		            jsfeat.imgproc.grayscale(frame_rgba.data, gray_frame.data);
+		            jsfeat.imgproc.grayscale(frame_rgba.data, gray_frame.cols, gray_frame.rows, gray_frame);
 
 		            this.rgba[videostab.get_ring_ind(this.curPos, this.frameBufferSize)] = frame_rgba;
 

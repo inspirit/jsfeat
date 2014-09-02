@@ -135,8 +135,6 @@
                     var sc0 = Math.min(max_pattern_size/img_u8.cols, max_pattern_size/img_u8.rows);
                     new_width = (img_u8.cols*sc0)|0;
                     new_height = (img_u8.rows*sc0)|0;
-                    lev0_img.resize(new_width, new_height, 1);
-                    lev_img.resize(new_width, new_height, 1);
 
                     jsfeat.imgproc.resample(img_u8, lev0_img, new_width, new_height);
 
@@ -151,7 +149,7 @@
                         // preallocate corners array
                         i = (new_width*new_height) >> lev;
                         while(--i >= 0) {
-                            lev_corners[i] = new jsfeat.point2d_t(0,0,0,0,-1);
+                            lev_corners[i] = new jsfeat.keypoint_t(0,0,0,0,-1);
                         }
 
                         pattern_descriptors[lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
@@ -162,11 +160,10 @@
                     lev_descr = pattern_descriptors[0];
 
                     jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, 5); // this is more robust
-                    corners_num = jsfeat.yape06.detect(lev_img, lev_corners);
-                    corners_num = preprocess_corners(lev_img, lev_corners, corners_num, 16, max_per_level);
+                    corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
                     jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
 
-                    //console.log("train " + new_width + "x" + new_height + " points: " + corners_num);
+                    console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
 
                     sc /= sc_inc;
 
@@ -179,12 +176,10 @@
 
                         new_width = (lev0_img.cols*sc)|0;
                         new_height = (lev0_img.rows*sc)|0;
-                        lev_img.resize(new_width, new_height, 1);
 
                         jsfeat.imgproc.resample(lev0_img, lev_img, new_width, new_height);
                         jsfeat.imgproc.gaussian_blur(lev_img, lev_img, 5);
-                        corners_num = jsfeat.yape06.detect(lev_img, lev_corners);
-                        corners_num = preprocess_corners(lev_img, lev_corners, corners_num, 16, max_per_level);
+                        corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
                         jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
 
                         // fix the coordinates due to scale level
@@ -193,7 +188,7 @@
                             lev_corners[i].y *= 1./sc;
                         }
 
-                        //console.log("train " + new_width + "x" + new_height + " points: " + corners_num);
+                        console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
 
                         sc /= sc_inc;
                     }
@@ -221,7 +216,7 @@
 
                 var i = 640*480;
                 while(--i >= 0) {
-                    screen_corners[i] = new jsfeat.point2d_t(0,0,0,0,-1);
+                    screen_corners[i] = new jsfeat.keypoint_t(0,0,0,0,-1);
                     matches[i] = new match_t();
                 }
 
@@ -252,7 +247,7 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                    jsfeat.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     stat.start("gauss blur");
@@ -263,8 +258,7 @@
                     jsfeat.yape06.min_eigen_value_threshold = options.eigen_thres|0;
 
                     stat.start("yape06 keypoints");
-                    num_corners = jsfeat.yape06.detect(img_u8_smooth, screen_corners);
-                    num_corners = preprocess_corners(img_u8_smooth, screen_corners, num_corners, 16, 500);
+                    num_corners = detect_keypoints(img_u8_smooth, screen_corners, 500);
                     stat.stop("yape06 keypoints");
 
                     stat.start("orb descriptors");
@@ -300,33 +294,17 @@
 
             // UTILITIES
 
-            // remove points that are too close to image borders
-            var remove_by_border = function(corners, count, w, h, border) {
-                var i = 0, j=0;
-                for( ; i < count; ++i ) {
-                    if( corners[i].x > border && corners[i].y > border
-                        && corners[i].x < w-border-1 && corners[i].y < h-border-1 ) {
-                        if( i > j ) {
-                            corners[j].x = corners[i].x;
-                            corners[j].y = corners[i].y;
-                            corners[j].score = corners[i].score;
-                        }
-                        ++j;
-                    }
-                }
+            function detect_keypoints(img, corners, max_allowed) {
+                // detect features
+                var count = jsfeat.yape06.detect(img, corners, 17);
 
-                return j;
-            };
-
-            // filter out unsuitable points and estimate dominant orientations
-            var preprocess_corners = function(img, corners, count, border, max_allowed) {
-                count = remove_by_border(corners, count, img.cols, img.rows, border);
+                // sort by score and reduce the count if needed
                 if(count > max_allowed) {
                     jsfeat.math.qsort(corners, 0, count-1, function(a,b){return (b.score<a.score);});
                     count = max_allowed;
                 }
 
-                // now calculate dominant orientation for each keypoint
+                // calculate dominant orientation for each keypoint
                 for(var i = 0; i < count; ++i) {
                     corners[i].angle = ic_angle(img, corners[i].x, corners[i].y);
                 }
@@ -336,7 +314,7 @@
 
             // central difference using image moments to find dominant orientation
             var u_max = new Int32Array([15,15,15,15,14,14,14,13,13,12,11,10,9,8,6,3,0]);
-            var ic_angle = function(img, px, py) {
+            function ic_angle(img, px, py) {
                 var half_k = 15; // half patch size
                 var m_01 = 0, m_10 = 0;
                 var src=img.data, step=img.cols;
@@ -391,7 +369,7 @@
                 ok = jsfeat.motion_estimator.ransac(ransac_param, mm_kernel, 
                                                     pattern_xy, screen_xy, count, homo3x3, match_mask, 1000);
 
-                // extract good matches and re-etimate
+                // extract good matches and re-estimate
                 var good_cnt = 0;
                 if(ok) {
                     for(var i=0; i < count; ++i) {
@@ -420,7 +398,7 @@
             }
 
             // naive brute-force matching.
-            // each on screen point is matched to all pattern points
+            // each on screen point is compared to all pattern points
             // to find the closest match
             function match_pattern() {
                 var q_cnt = screen_descriptors.rows;

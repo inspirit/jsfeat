@@ -155,7 +155,7 @@
 
                     stat.start("haar detector");
                     
-                    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+                    jsfeat.imgproc.grayscale(imageData.data, work_canvas.width, work_canvas.height, img_u8);
 
                     // possible options
                     if(options.equalize_histogram) {

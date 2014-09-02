@@ -118,7 +118,7 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    jsfeat.imgproc.grayscale(imageData.data, img_pyr.data[0].data);
+                    jsfeat.imgproc.grayscale(imageData.data, 640, 480, img_pyr.data[0]);
                     stat.stop("grayscale");
 
                     stat.start("pyrdown");

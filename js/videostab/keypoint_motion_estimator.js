@@ -47,8 +47,8 @@
 	        this.corners1 = [];
 	        var i = (size.width*size.height) >> 1;
 	        while(--i >= 0) {
-	            this.corners0[i] = new jsfeat.point2d_t(0,0,0,0);
-	            this.corners1[i] = new jsfeat.point2d_t(0,0,0,0);
+	            this.corners0[i] = new jsfeat.keypoint_t(0,0,0,0);
+	            this.corners1[i] = new jsfeat.keypoint_t(0,0,0,0);
 	        }
 	    };
 
