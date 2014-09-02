@@ -108,9 +108,9 @@
                 transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
 
                 jsfeat.math.perspective_4point_transform(transform, 0,   0,   50,  50,
-                                                                       640, 0,   550, 100,
-                                                                       640, 480, 300, 400,
-                                                                       0,   480, 100, 400);
+                                                                    640, 0,   550, 100,
+                                                                    640, 480, 300, 400,
+                                                                    0,   480, 100, 400);
                 jsfeat.matmath.invert_3x3(transform, transform);
 
                 stat.add("grayscale");
