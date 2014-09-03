@@ -34,6 +34,7 @@ The project aim is to explore JS/HTML5 possibilities using modern & state-of-art
  * Fast Corners feature detector ([Demo](http://inspirit.github.com/jsfeat/sample_fast_corners.html))
  * YAPE06 feature detector ([Demo](http://inspirit.github.com/jsfeat/sample_yape06.html))
  * YAPE feature detector ([Demo](http://inspirit.github.com/jsfeat/sample_yape.html))
+ * ORB feature descriptor ([Demo](http://inspirit.github.com/jsfeat/sample_orb.html))
 * Lucas-Kanade optical flow ([Demo](http://inspirit.github.com/jsfeat/sample_oflow_lk.html) - click to add points)
 * HAAR object detector ([Demo](http://inspirit.github.com/jsfeat/sample_haar_face.html))
 * BBF object detector ([Demo](http://inspirit.github.com/jsfeat/sample_bbf_face.html))
