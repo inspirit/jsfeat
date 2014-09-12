@@ -1,0 +1,13 @@
+{
+
+    "name": "jsfeat",
+    "version" : "0.0.8",
+    "description" : "JavaScript Computer Vision library",
+    "author" : "Eugene Zatepyakin (http://www.inspirit.ru/)",
+
+    "ignore": [
+      "src",
+      "compile",
+      "node_modules"
+    ]
+}
