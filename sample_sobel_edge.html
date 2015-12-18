@@ -7,9 +7,9 @@
         <meta name="description" content="A JavaScript Computer Vision Library">
         <meta name="author" content="Eugene Zatepyakin">
         <title>JSFeat - JavaScript Computer Vision Library.</title>
-        
 
-        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
 
@@ -155,13 +155,13 @@
                             gy = gd[(i<<1)+1];
                             agx = ((gx ^ (gx >> 31)) - (gx >> 31))|0;
                             agy = ((gy ^ (gy >> 31)) - (gy >> 31))|0;
-                            
+
                             if(gx > 0) dx = 1;
                             else dx = -1;
 
                             if(gy > 0) dy = img_u8.cols;
                             else dy = -img_u8.cols;
-                                
+
                             var a1, a2, b1, b2, A, B, point;
                             if(agx > agy) {
                                 a1 = mag[i+dx];
@@ -190,7 +190,7 @@
                                 }
                                 else {
                                     id[i] = 0x0;
-                                }                           
+                                }
                             }
                         }
                     }
@@ -207,7 +207,7 @@
                         pix = id[i];
                         data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
                     }
-                    
+
                     ctx.putImageData(imageData, 0, 0);
 
                     $('#log').html(stat.log());

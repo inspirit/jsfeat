@@ -8,7 +8,7 @@
         <meta name="author" content="Eugene Zatepyakin">
         <title>JSFeat - JavaScript Computer Vision Library.</title>
 
-        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
 
@@ -141,7 +141,7 @@
                         pix = img_u8_warp.data[i];
                         data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
                     }
-                    
+
                     ctx.putImageData(imageData, 0, 0);
 
                     $('#log').html(stat.log());

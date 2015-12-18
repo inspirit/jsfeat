@@ -8,7 +8,7 @@
         <meta name="author" content="Eugene Zatepyakin">
         <title>JSFeat - JavaScript Computer Vision Library.</title>
 
-        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
 
@@ -169,7 +169,7 @@
                     sc /= sc_inc;
 
                     // lets do multiple scale levels
-                    // we can use Canvas context draw method for faster resize 
+                    // we can use Canvas context draw method for faster resize
                     // but its nice to demonstrate that you can do everything with jsfeat
                     for(lev = 1; lev < num_train_levels; ++lev) {
                         lev_corners = pattern_corners[lev];
@@ -281,7 +281,7 @@
                         good_matches = find_transform(matches, num_matches);
                         stat.stop("matching");
                     }
-                    
+
                     ctx.putImageData(imageData, 0, 0);
 
                     if(num_matches) {
@@ -322,11 +322,11 @@
                 var src=img.data, step=img.cols;
                 var u=0, v=0, center_off=(py*step + px)|0;
                 var v_sum=0,d=0,val_plus=0,val_minus=0;
-                
+
                 // Treat the center line differently, v=0
                 for (u = -half_k; u <= half_k; ++u)
                     m_10 += u * src[center_off+u];
-                
+
                 // Go line by line in the circular patch
                 for (v = 1; v <= half_k; ++v) {
                     // Proceed over the two lines
@@ -340,7 +340,7 @@
                     }
                     m_01 += v * v_sum;
                 }
-                
+
                 return Math.atan2(m_01, m_10);
             }
 
@@ -351,7 +351,7 @@
                 // ransac params
                 var num_model_points = 4;
                 var reproj_threshold = 3;
-                var ransac_param = new jsfeat.ransac_params_t(num_model_points, 
+                var ransac_param = new jsfeat.ransac_params_t(num_model_points,
                                                               reproj_threshold, 0.5, 0.99);
 
                 var pattern_xy = [];
@@ -368,7 +368,7 @@
 
                 // estimate motion
                 var ok = false;
-                ok = jsfeat.motion_estimator.ransac(ransac_param, mm_kernel, 
+                ok = jsfeat.motion_estimator.ransac(ransac_param, mm_kernel,
                                                     pattern_xy, screen_xy, count, homo3x3, match_mask, 1000);
 
                 // extract good matches and re-estimate
@@ -484,7 +484,7 @@
             }
 
             function render_matches(ctx, matches, count) {
-                
+
                 for(var i = 0; i < count; ++i) {
                     var m = matches[i];
                     var s_kp = screen_corners[m.screen_idx];

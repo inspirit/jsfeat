@@ -8,7 +8,7 @@
         <meta name="author" content="Eugene Zatepyakin">
         <title>JSFeat - JavaScript Computer Vision Library.</title>
 
-        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
 
@@ -189,7 +189,7 @@
                         pix = img.data[i];
                         data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
                     }
-                    
+
                     ctx.putImageData(imageData, 0, 0);
                     //
 
@@ -244,9 +244,9 @@
                         this.width = w || 640;
                         this.height = h || 480;
 
-                        this.view = view || document.createElement( 'canvas' ); 
+                        this.view = view || document.createElement( 'canvas' );
                         this.view.width = this.width;
-                        this.view.height = this.height;  
+                        this.view.height = this.height;
                         this.view.background = "#00FF00";
 
                         this.gl = this.view.getContext("experimental-webgl", { alpha: false });
@@ -269,9 +269,9 @@
                         gl.clear(gl.COLOR_BUFFER_BIT);
                         gl.clearColor(0, 0, 0, 1.0);
 
-                        gl.uniform4f(this.shaderProgram.transformUniform, 
-                                        this.worldMatrix[0], 
-                                        this.worldMatrix[1], 
+                        gl.uniform4f(this.shaderProgram.transformUniform,
+                                        this.worldMatrix[0],
+                                        this.worldMatrix[1],
                                         this.worldMatrix[2],
                                         this.worldMatrix[3]);
                     };
@@ -333,14 +333,14 @@
                             return null;
                         }
                         gl.shaderSource(shader, theSource);
-             
+
                         // Compile the shader program
-                        gl.compileShader(shader);  
+                        gl.compileShader(shader);
 
                         // See if it compiled successfully
-                        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {  
-                            alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));  
-                            return null;  
+                        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                            alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
+                            return null;
                         }
 
                         return shader;
@@ -378,7 +378,7 @@
                     renderGL.prototype.setCorners = function(tlx, tly, trx, _try, brx, bry, blx, bly) {
                         var gl = this.gl;
                         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(
-                                                            [tlx, tly, 
+                                                            [tlx, tly,
                                                              trx, _try,
                                                              blx, bly,
                                                              blx, bly,
@@ -448,7 +448,7 @@
 
 
             })();
-            
+
         });
         </script>
     </body>

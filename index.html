@@ -7,9 +7,9 @@
         <meta name="description" content="A JavaScript Computer Vision Library">
         <meta name="author" content="Eugene Zatepyakin">
         <title>JSFeat - JavaScript Computer Vision Library.</title>
-        
 
-        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
         <link rel="stylesheet" href="css/page.css">
@@ -105,7 +105,7 @@ var my_matrix = new jsfeat.matrix_t(columns, rows, data_type, data_buffer);
                         <h4>pyramid_t</h4>
                         <p>A structure to wrap several <code>matrix_t</code> instances. Each <code>data</code> entry is 2x smaller then previous:</p>
 <pre class="prettyprint linenums">
-var levels = 3, start_width = 640, start_height = 480, 
+var levels = 3, start_width = 640, start_height = 480,
     data_type = jsfeat.U8_t | jsfeat.C1_t;
 var my_pyramid = new jsfeat.pyramid_t(levels);
 
@@ -185,7 +185,7 @@ jsfeat.math.qsort(arr, 0, arr.length-1, cmp_numeric);
 // sort array of points
 var point_arr = [ new jsfeat.keypoint_t(1,10),
                   new jsfeat.keypoint_t(5,1),
-                  new jsfeat.keypoint_t(33,10), 
+                  new jsfeat.keypoint_t(33,10),
                   new jsfeat.keypoint_t(0,0),
                   new jsfeat.keypoint_t(8,6),
                   new jsfeat.keypoint_t(3,0)];
@@ -486,7 +486,7 @@ jsfeat.imgproc.sobel_derivatives(source:matrix_t, dest:matrix_t);
                         <h4>compute_integral_image</h4>
                         <p>Calculates one or more integral images for the source image. Using these integral images, one may calculate sum, mean, standard deviation over arbitrary up-right or rotated rectangular region of the image in a constant time. <span class="label label-important">NOTE:</span> each destinatination should be 1 pixel larger than source <code>width = source.cols+1, height = source.rows+1</code>. Single channel source only.</p>
 <pre class="prettyprint linenums">
-jsfeat.imgproc.compute_integral_image(source:matrix_t, 
+jsfeat.imgproc.compute_integral_image(source:matrix_t,
                                       sum:Array, sqsum:Array, tilted:Array);
 </pre>
                         <h4>equalize_histogram</h4>
@@ -506,7 +506,7 @@ jsfeat.imgproc.canny(source:matrix_t, dest:matrix_t, low_threshold, high_thresho
                         <p>To avoid sampling artifacts, the mapping is done in the reverse order, from destination to the source. That is, for each pixel  of the destination image, the functions compute coordinates of the corresponding “donor” pixel in the source image and copy the pixel value.</p>
                         <p><a href="sample_warp_perspective.html" target="_blank" role="button" class="btn btn-mini">WARP PERSPECTIVE DEMO</a></p>
 <pre class="prettyprint linenums">
-jsfeat.imgproc.warp_perspective(source:matrix_t, dest:matrix_t, 
+jsfeat.imgproc.warp_perspective(source:matrix_t, dest:matrix_t,
                                 warp_mat:matrix_t, fill_value = 0);
 </pre>
                         <h4>warp_affine</h4>
@@ -514,7 +514,7 @@ jsfeat.imgproc.warp_perspective(source:matrix_t, dest:matrix_t,
                         <p>To avoid sampling artifacts, the mapping is done in the reverse order, from destination to the source. That is, for each pixel  of the destination image, the functions compute coordinates of the corresponding “donor” pixel in the source image and copy the pixel value.</p>
                         <p><a href="sample_warp_affine.html" target="_blank" role="button" class="btn btn-mini">WARP AFFINE DEMO</a></p>
 <pre class="prettyprint linenums">
-jsfeat.imgproc.warp_affine(source:matrix_t, dest:matrix_t, 
+jsfeat.imgproc.warp_affine(source:matrix_t, dest:matrix_t,
                            warp_mat:matrix_t, fill_value = 0);
 </pre>
                     </section>
@@ -525,7 +525,7 @@ jsfeat.imgproc.warp_affine(source:matrix_t, dest:matrix_t,
                         <p>Detects corners using the <code>FAST</code> algorithm.</p>
                         <p><a href="sample_fast_corners.html" target="_blank" role="button" class="btn btn-mini">FAST CORNERS DEMO</a></p>
 <pre class="prettyprint linenums">
-// threshold on difference between intensity of the central pixel 
+// threshold on difference between intensity of the central pixel
 // and pixels of a circle around this pixel
 var threshold = 20;
 jsfeat.fast_corners.set_threshold(threshold);
@@ -611,19 +611,19 @@ max_iter            - stop searching after the specified maximum number of itera
 status              - each element is set to 1 if the flow for the corresponding features
                       has been found overwise 0
 eps                 - stop searching when the search window moves by less than eps
-min_eigen_threshold - the algorithm calculates the minimum eigen value of a 2x2 
-                      normal matrix of optical flow equations, divided by number of 
-                      pixels in a window; if this value is less than min_eigen_threshold, 
-                      then a corresponding feature is filtered out and its flow is not 
+min_eigen_threshold - the algorithm calculates the minimum eigen value of a 2x2
+                      normal matrix of optical flow equations, divided by number of
+                      pixels in a window; if this value is less than min_eigen_threshold,
+                      then a corresponding feature is filtered out and its flow is not
                       processed, it allows to remove bad points and get a performance boost
 */
 
-jsfeat.optical_flow_lk.track(prev_pyr:pyramid_t, curr_pyr:pyramid_t, 
-                             prev_xy:Array, curr_xy:Array, count, 
-                             win_size, max_iter = 30, status:Array = null, 
+jsfeat.optical_flow_lk.track(prev_pyr:pyramid_t, curr_pyr:pyramid_t,
+                             prev_xy:Array, curr_xy:Array, count,
+                             win_size, max_iter = 30, status:Array = null,
                              eps = 0.01, min_eigen_threshold = 0.0001);
 </pre>
-                    </section> 
+                    </section>
                     <section id="haar">
                         <h2>HAAR Cascades object detector</h2>
                         <p>The object detector initially proposed by Paul Viola and improved by Rainer Lienhart.</p>
@@ -642,11 +642,11 @@ scale           - image scale
 classifier      - haar cascade classifier
 rects           - rectangles representing detected object
 */
-var rects:Array = jsfeat.haar.detect_single_scale(int_sum:Array, 
-                                                  int_sqsum:Array, 
-                                                  int_tilted:Array, 
-                                                  int_canny_sum:Array, 
-                                                  width, height, scale, 
+var rects:Array = jsfeat.haar.detect_single_scale(int_sum:Array,
+                                                  int_sqsum:Array,
+                                                  int_tilted:Array,
+                                                  int_canny_sum:Array,
+                                                  width, height, scale,
                                                   classifier);
 </pre>
 <pre class="prettyprint linenums">
@@ -664,12 +664,12 @@ scale_factor    - how much the image size is reduced at each image scale
 scale_min       - start scale
 rects           - rectangles representing detected object
 */
-var rects:Array = jsfeat.haar.detect_multi_scale(int_sum:Array, 
-                                                 int_sqsum:Array, 
-                                                 int_tilted:Array, 
-                                                 int_canny_sum:Array, 
-                                                 width, height, 
-                                                 classifier, 
+var rects:Array = jsfeat.haar.detect_multi_scale(int_sum:Array,
+                                                 int_sqsum:Array,
+                                                 int_tilted:Array,
+                                                 int_canny_sum:Array,
+                                                 width, height,
+                                                 classifier,
                                                  scale_factor = 1.2, scale_min = 1);
 </pre>
 <pre class="prettyprint linenums">
@@ -703,8 +703,8 @@ min_width         - minimum width to scale pyramid to
 min_height        - minimum height to scale pyramid to
 interval          - number of original scale levels in pyramid
 */
-var img_pyramid:pyramid_t = jsfeat.bbf.build_pyramid(src, 
-                                                 min_width, min_height, 
+var img_pyramid:pyramid_t = jsfeat.bbf.build_pyramid(src,
+                                                 min_width, min_height,
                                                  interval = 4);
 
 /*

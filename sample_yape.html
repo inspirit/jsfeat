@@ -8,7 +8,7 @@
         <meta name="author" content="Eugene Zatepyakin">
         <title>JSFeat - JavaScript Computer Vision Library.</title>
 
-        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
 
@@ -141,7 +141,7 @@
                     // render result back to canvas
                     var data_u32 = new Uint32Array(imageData.data.buffer);
                     render_corners(corners, count, data_u32, 640);
-                    
+
                     ctx.putImageData(imageData, 0, 0);
 
                     $('#log').html(stat.log());

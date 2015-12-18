@@ -8,7 +8,7 @@
         <meta name="author" content="Eugene Zatepyakin">
         <title>JSFeat - JavaScript Computer Vision Library.</title>
 
-        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
 
@@ -137,7 +137,7 @@
                     for(i=0; i < img_pyr.levels; ++i){
                         render_mono_image(img_pyr.data[i].data, data_u32, img_pyr.data[i].cols, img_pyr.data[i].rows, 640);
                     }
-                    
+
                     ctx.putImageData(imageData, 0, 0);
 
                     $('#log').html(stat.log());
