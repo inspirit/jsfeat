@@ -2933,6 +2933,79 @@ var jsfeat = jsfeat || { REVISION: 'ALPHA' };
                 jsfeat.cache.put_buffer(buf_node);
                 jsfeat.cache.put_buffer(filt_node);
             },
+            hough_transform: function( img, rho_res, theta_res, threshold ) {
+                var image = img.data;
+
+                var width = img.cols;
+                var height = img.rows;
+                var step = width;
+
+                min_theta = 0.0;
+                max_theta = Math.PI;
+
+                numangle = Math.round((max_theta - min_theta) / theta_res);
+                numrho = Math.round(((width + height) * 2 + 1) / rho_res);
+                irho = 1.0 / rho_res;
+
+                var accum = new Int32Array((numangle+2) * (numrho+2)); //typed arrays are initialized to 0
+                var tabSin = new Float32Array(numangle);
+                var tabCos = new Float32Array(numangle);
+
+                var n=0;
+                var ang = min_theta;
+                for(; n < numangle; n++ ) {
+                    tabSin[n] = Math.sin(ang) * irho;
+                    tabCos[n] = Math.cos(ang) * irho;
+                    ang += theta_res
+                }
+
+                // stage 1. fill accumulator
+                for( var i = 0; i < height; i++ ) {
+                    for( var j = 0; j < width; j++ ) {
+                        if( image[i * step + j] != 0 ) {
+                            //console.log(r, (n+1) * (numrho+2) + r+1, tabCos[n], tabSin[n]);
+                            for(var n = 0; n < numangle; n++ ) {
+                                var r = Math.round( j * tabCos[n] + i * tabSin[n] );
+                                r += (numrho - 1) / 2;
+                                accum[(n+1) * (numrho+2) + r+1] += 1;
+                            }
+                        }
+                    }
+                }
+
+                // stage 2. find local maximums
+                //TODO: Consider making a vector class that uses typed arrays
+                _sort_buf = new Array();
+                for(var r = 0; r < numrho; r++ ) {
+                    for(var n = 0; n < numangle; n++ ) {
+                        var base = (n+1) * (numrho+2) + r+1;
+                        if( accum[base] > threshold &&
+                            accum[base] > accum[base - 1] && accum[base] >= accum[base + 1] &&
+                            accum[base] > accum[base - numrho - 2] && accum[base] >= accum[base + numrho + 2] ) {
+                            _sort_buf.push(base);
+                        }
+                    }
+                }
+
+                // stage 3. sort the detected lines by accumulator value
+                _sort_buf.sort(function(l1, l2) {
+                    return accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2);
+                });
+
+                // stage 4. store the first min(total,linesMax) lines to the output buffer
+                linesMax = Math.min(numangle*numrho, _sort_buf.length);
+                scale = 1.0 / (numrho+2);
+                lines = new Array();
+                for( var i = 0; i < linesMax; i++ ) {
+                    var idx = _sort_buf[i];
+                    var n = Math.floor(idx*scale) - 1;
+                    var r = idx - (n+1)*(numrho+2) - 1;
+                    var lrho = (r - (numrho - 1)*0.5) * rho_res;
+                    var langle = n * theta_res;
+                    lines.push([lrho, langle]);
+                }
+                return lines;
+            },
             // assume we always need it for u8 image
             pyrdown: function(src, dst, sx, sy) {
                 // this is needed for bbf
