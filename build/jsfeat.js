@@ -4965,7 +4965,8 @@ The references are:
 
             edges_density: 0.07,
 
-            detect_single_scale: function(int_sum, int_sqsum, int_tilted, int_canny_sum, width, height, scale, classifier) {
+            detect_single_scale: function(int_sum, int_sqsum, int_tilted, int_canny_sum, width, height, scale, classifier,flipClassifer) {
+                if(typeof flipClassifer =='undefined') flipClassifer=false;
                 var win_w = (classifier.size[0] * scale)|0,
                     win_h = (classifier.size[1] * scale)|0,
                     step_x = (0.5 * scale + 1.5)|0,
@@ -4985,7 +4986,6 @@ The references are:
                 for(y = 0; y < ey; y += step_y) {
                     ii_a = y * w1;
                     for(x = 0; x < ex; x += step_x, ii_a += step_x) {
-
                         mean =    int_sum[ii_a] 
                                 - int_sum[ii_a+ii_b]
                                 - int_sum[ii_a+ii_c]
@@ -5028,29 +5028,57 @@ The references are:
                                 if(tree.tilted === 1) {
                                     for(k=0; k < fn; ++k) {
                                         feature = features[k];
-                                        fi_a = ~~(x + feature[0] * scale) + ~~(y + feature[1] * scale) * w1;
-                                        fw = ~~(feature[2] * scale);
-                                        fh = ~~(feature[3] * scale);
-                                        fi_b = fw * w1;
-                                        fi_c =  fh * w1;
+                                        if(flipClassifer){
+                                            fi_a = ~~((x+win_w)-(feature[0] * scale)-(feature[2] * scale)) + ~~(y + feature[1] * scale) * w1;
+                                            fw = ~~(feature[2] * scale);
+                                            fh = ~~(feature[3] * scale);
+                                            fi_b = fw * w1;
+                                            fi_c =  fh * w1;
 
-                                        tree_sum += (int_tilted[fi_a]
-                                                    - int_tilted[fi_a + fw + fi_b]
-                                                    - int_tilted[fi_a - fh + fi_c]
-                                                    + int_tilted[fi_a + fw - fh + fi_b + fi_c]) * feature[4];
+                                            tree_sum += (int_tilted[fi_a]
+                                                        - int_tilted[fi_a + fw + fi_b]
+                                                        - int_tilted[fi_a - fh + fi_c]
+                                                        + int_tilted[fi_a + fw - fh + fi_b + fi_c]) * feature[4];
+                                        }
+                                        else{
+                                            fi_a = ~~(x + feature[0] * scale) + ~~(y + feature[1] * scale) * w1;
+                                            fw = ~~(feature[2] * scale);
+                                            fh = ~~(feature[3] * scale);
+                                            fi_b = fw * w1;
+                                            fi_c =  fh * w1;
+
+                                            tree_sum += (int_tilted[fi_a]
+                                                        - int_tilted[fi_a + fw + fi_b]
+                                                        - int_tilted[fi_a - fh + fi_c]
+                                                        + int_tilted[fi_a + fw - fh + fi_b + fi_c]) * feature[4];
+                                        }
                                     }
                                 } else {
                                     for(k=0; k < fn; ++k) {
                                         feature = features[k];
-                                        fi_a = ~~(x + feature[0] * scale) + ~~(y + feature[1] * scale) * w1;
-                                        fw = ~~(feature[2] * scale);
-                                        fh = ~~(feature[3] * scale);
-                                        fi_c = fh * w1;
+                                        if(flipClassifer){
+                                            fi_a = ~~((x+win_w)-(feature[0] * scale)-(feature[2] * scale)) + ~~(y + feature[1] * scale) * w1;
+                                            fw = ~~(feature[2] * scale);
+                                            fh = ~~(feature[3] * scale);
+                                            fi_c = fh * w1;
 
-                                        tree_sum += (int_sum[fi_a] 
-                                                    - int_sum[fi_a+fw]
-                                                    - int_sum[fi_a+fi_c]
-                                                    + int_sum[fi_a+fi_c+fw]) * feature[4];
+                                            tree_sum += (int_sum[fi_a] 
+                                                -int_sum[fi_a+fw]
+                                                - int_sum[fi_a+fi_c]
+                                                + int_sum[fi_a+fi_c+fw]) * feature[4];
+                                        }
+                                        else{
+                                            fi_a = ~~(x + feature[0] * scale) + ~~(y + feature[1] * scale) * w1;
+                                            fw = ~~(feature[2] * scale);
+                                            fh = ~~(feature[3] * scale);
+                                            fi_c = fh * w1;
+
+                                            tree_sum += (int_sum[fi_a] 
+                                                - int_sum[fi_a+fw]
+                                                - int_sum[fi_a+fi_c]
+                                                + int_sum[fi_a+fi_c+fw]) * feature[4];
+                                        }
+                                        
                                     }
                                 }
                                 stage_sum += (tree_sum * inv_area < tree.threshold * std) ? tree.left_val : tree.right_val;
@@ -5075,14 +5103,15 @@ The references are:
                 return rects;
             },
 
-            detect_multi_scale: function(int_sum, int_sqsum, int_tilted, int_canny_sum, width, height, classifier, scale_factor, scale_min) {
+            detect_multi_scale: function(int_sum, int_sqsum, int_tilted, int_canny_sum, width, height, classifier, scale_factor, scale_min, flipClassifier) {
+                if(typeof flipClassifier==="undefined") { flipClassifier=false;}
                 if (typeof scale_factor === "undefined") { scale_factor = 1.2; }
                 if (typeof scale_min === "undefined") { scale_min = 1.0; }
                 var win_w = classifier.size[0];
                 var win_h = classifier.size[1];
                 var rects = [];
                 while (scale_min * win_w < width && scale_min * win_h < height) {
-                    rects = rects.concat(this.detect_single_scale(int_sum, int_sqsum, int_tilted, int_canny_sum, width, height, scale_min, classifier));
+                    rects = rects.concat(this.detect_single_scale(int_sum, int_sqsum, int_tilted, int_canny_sum, width, height, scale_min, classifier, flipClassifier));
                     scale_min *= scale_factor;
                 }
                 return rects;
