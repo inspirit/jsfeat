@@ -1,0 +1,35 @@
+<project name="Build" default="compress">
+    <target name="concatenate">
+        <concat destfile="../build/jsfeat.js" encoding="UTF-8" outputencoding="UTF-8" fixlastline="true">
+            <filelist id="filelist" dir="../src">
+                <file name="jsfeat.js"/>
+                <file name="jsfeat_struct.js" />
+                <file name="jsfeat_cache.js" />
+                <file name="jsfeat_math.js" />
+                <file name="jsfeat_mat_math.js" />
+                <file name="jsfeat_linalg.js" />
+                <file name="jsfeat_motion_estimator.js" />
+                <file name="jsfeat_imgproc.js" />
+                <file name="jsfeat_fast_corners.js" />
+                <file name="jsfeat_yape06.js" />
+                <file name="jsfeat_yape.js" />
+                <file name="jsfeat_orb.js" />
+                <file name="jsfeat_optical_flow_lk.js" />
+                <file name="jsfeat_haar.js" />
+                <file name="jsfeat_bbf.js" />
+                <file name="jsfeat_export.js" />
+            </filelist>
+        </concat>
+    </target>
+    <target name="compress" depends="concatenate" description="Compress jsfeat.js to jsfeat-min.js">
+        <apply executable="java" parallel="false">
+            <filelist dir="../build" files="jsfeat.js" />
+            <arg line="-jar" />
+            <arg path="yuicompressor-2.4.2.jar" />
+            <srcfile />
+            <arg line="-o" />
+            <mapper type="glob" from="*.js" to="../build/*-min.js" />
+            <targetfile />
+        </apply>
+    </target>
+</project>
