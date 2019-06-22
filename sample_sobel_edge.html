@@ -71,7 +71,7 @@
 
                 compatibility.getUserMedia({video: true}, function(stream) {
                     try {
-                        video.srcObject = tream;
+                        video.srcObject = stream;
                     } catch (error) {
                         video.src = compatibility.URL.createObjectURL(stream);
                     }
