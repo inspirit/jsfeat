@@ -71,11 +71,7 @@
                 video.addEventListener('loadeddata', readyListener);
 
                 compatibility.getUserMedia({video: true}, function(stream) {
-                    try {
-                        video.src = compatibility.URL.createObjectURL(stream);
-                    } catch (error) {
-                        video.src = stream;
-                    }
+                    video.srcObject = stream;
                     setTimeout(function() {
                             video.play();
                         }, 500);
